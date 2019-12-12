@@ -1,19 +1,13 @@
 #ifndef _INFER_H_
 #define _INFER_H_
 
+#include "peel.h"
+
 #include <stdint.h>
 #include <vector>
 #include <fstream>
 
-struct State{
-  uint8_t v;//value
-  uint8_t k;//known
-};
 
-
-struct BoolState{
-  bool v,k;
-};
 
 class AndBlock{
 public:
@@ -21,13 +15,6 @@ public:
   BoolState seenVal[256][256]; 
   void reset();
   bool check(BoolState& s,uint8_t inp,State fb);
-};
-
-
-
-struct Data{
-  uint8_t inp,out;
-  bool edge;
 };
 
 class PeelBinarySink; //fw declaration

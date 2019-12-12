@@ -1,8 +1,9 @@
-#include "infer.h"
-#include "peelBinarySink.h"
 #include <vector>
 #include <iostream>
 
+#include "infer.h"
+#include "peelBinarySink.h"
+#include "dataLoad.h"
 
 #define USE_OMP
 
@@ -43,33 +44,6 @@ void testConf(PeelInfer& peel,uint32_t conf){
 
 
 
-bool loadTripletFile(const char* name){
-  ifstream file(name, ios::in|ios::binary|ios::ate);
-  if (file.is_open())
-  {
-    size_t size = file.tellg();
-    uint8_t* buffer = new uint8_t [size];
-    file.seekg (0, ios::beg);
-    file.read (reinterpret_cast<char*>(buffer), size);
-
-    data.resize(size/3);
-    size_t k=0;
-    uint8_t prevInp=0;
-    for (size_t i=0;i<size;i+=3){
-      data[k].inp=buffer[i];
-      data[k].out=buffer[i+1];
-      data[k].edge=(buffer[i] & 1) && !(prevInp & 1);
-      prevInp=buffer[i];
-    }
-
-    file.close();
-    delete[] buffer;    
-    return true;
-  }else{
-    return false;
-  }
-}
-
 
 int main(int argc,char** argv)
 {
@@ -79,7 +53,7 @@ int main(int argc,char** argv)
     return 0;
   }
 
-  if (!loadTripletFile(argv[1])){   
+  if (!loadTransitionsFile(data,argv[1])){   
       cerr<<"Unable to open input file "<<argv[1]<<endl;
       return -1;
   }
@@ -87,7 +61,7 @@ int main(int argc,char** argv)
   if (!validSink.open(argv[2])){
     cerr<<"Unable to open output file "<<argv[2]<<endl;
     return -1;  
-  }
+  }  
   cout<<"Possible confs are "<<0x1000000<<std::endl;
 
   

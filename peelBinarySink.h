@@ -3,7 +3,7 @@
 
 #include <mutex>
 #include <fstream>
-#include "infer.h"
+#include "peel.h"
 
 class PeelBinarySink{
 public:
