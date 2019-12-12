@@ -6,7 +6,7 @@ using namespace std;
 
 
 PeelFileSink::PeelFileSink():
-  validCnt(0){
+  validCnt(0),invalidCnt(0){
 }
 
 bool PeelFileSink::open(const char* filename)
@@ -23,15 +23,16 @@ bool PeelFileSink::open(const char* filename)
 PeelFileSink::~PeelFileSink(){
   if (f.is_open()){
     f<<"{}]";
+    f.close();
   }
 }
 
-void PeelFileSink::update(const Peel& p,size_t batchInvalid){
+void PeelFileSink::update(const PeelInfer& p,size_t batchInvalid){
   m.lock();
   validCnt++;
   invalidCnt+=batchInvalid;
   cout<<validCnt<<" valid configurations "<<invalidCnt<<" invalid configurations"<<endl;
-  f<<","<<endl;
+  f<<p<<","<<endl;
   f.flush();
   m.unlock();
 }
@@ -44,26 +45,75 @@ void PeelFileSink::update(size_t batchInvalid){
   m.unlock();
 }
 
-static inline void hexOut(std::ostream &os,const char* name,uint8_t val){
-  os<<"\""<<name<<"\":\""<<static_cast<uint16_t>(val)<<"\",";
+
+
+void PeelFileSink::printProgress(){
+  size_t p=(100*(validCnt+invalidCnt))>>24;
+  cout<<p<<"% :"<<validCnt <<" valid configurations "<<invalidCnt<<" invalid configurations\r"<<flush;
 }
 
 
-std::ostream & operator<<(std::ostream &os, const Peel& p){
+void PeelFileSink::addValid(const PeelInfer& p){
+  m.lock();
+  validCnt++;  
+  f<<p<<","<<endl;
+  printProgress();
+  f.flush();
+  m.unlock();
+}
+
+void PeelFileSink::addInvalid(){
+  m.lock();
+  invalidCnt++;
+  m.unlock();
+}
+
+
+
+
+static inline void key(std::ostream &os,const char* name){
+  os<<"\""<<name<<"\":";
+}
+
+
+static inline void hexOut(std::ostream &os,const char* name,uint8_t val){
+  key(os,name);
+  os<<"\""<<static_cast<uint16_t>(val)<<"\",";
+}
+
+
+static inline std::ostream& operator<<(std::ostream &os, const BoolState& bs){
+    return os<<(bs.k? (bs.v?'1':'0'):'u');
+  }
+
+static inline std::ostream& operator<<(std::ostream &os, const AndBlock& ab){
+  os<<"{";
+  key(os,"mask");
+  os<<"\""<<setw(8)<<ab.mask<<"\","<<setw(2);
+  key(os,"seen");
+  os<<"\"";
+  for (size_t i=0;i<256;i++){
+    for (size_t j=0;j<256;j++){
+      os<<ab.seenVal[i][j];
+    }
+  }
+  return os<<"\"}";    
+}
+
+
+std::ostream & operator<<(std::ostream &os, const PeelInfer& p){
 
   os<<hex<<setfill('0') << setw(2);
   hexOut(os,"outd",p.outd);
   hexOut(os,"fbd",p.fbd);
   hexOut(os,"outneg",p.outneg);
-  
-  hexOut(os,"clrMaskp",p.clrMaskp);
-  hexOut(os,"clrMaskn",p.clrMaskn);
-  hexOut(os,"setMaskp",p.setMaskp);
-  hexOut(os,"setMaskn",p.setMaskn);
-
+  key(os,"clr");
+  os<<p.clr<<",";
+  key(os,"set");
+  os<<p.set<<",";  
   os<<"\"f\":\"";
-  for (uint16_t i=0;i<0x100;i++){    
-    for (uint16_t j=0;i<0x100;j++){
+  for (uint16_t i=0;i<256;i++){    
+    for (uint16_t j=0;j<256;j++){
       os<<static_cast<uint16_t>(p.f[i][j].v);
       os<<static_cast<uint16_t>(p.f[i][j].k);
     }
@@ -72,8 +122,8 @@ std::ostream & operator<<(std::ostream &os, const Peel& p){
 }
 
 
-std::istream & operator>>(std::istream &is, Peel& p){
-  throw "unimplented yet";
+std::istream & operator>>(std::istream &is, PeelInfer& p){
+  throw "unimplented";
   return is;
 }
 

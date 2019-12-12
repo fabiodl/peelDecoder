@@ -1,5 +1,5 @@
 
-OBJS := checkPeel.o simul.o peelFileSink.o
+OBJS := checkPeel.o peelBinarySink.o infer.o
 CXXFLAGS= -fopenmp -O2 -std=c++11 -Wall
 # 
 # link

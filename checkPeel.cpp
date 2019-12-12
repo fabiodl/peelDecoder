@@ -1,5 +1,5 @@
-#include "simul.h"
-#include "peelFileSink.h"
+#include "infer.h"
+#include "peelBinarySink.h"
 #include <vector>
 #include <iostream>
 
@@ -25,44 +25,19 @@ using namespace std;
 
 vector<Data> data;
 
+PeelBinarySink validSink;
 
-
-PeelFileSink validSink;
-
-static inline bool validConfig(uint32_t c){
-  uint8_t common=((c>>8)&c&0xFF);
-  return common && common!=0b11;
-}
-
-
-void testConf(Peel& peel,uint32_t conf){
-  size_t batchInvalid=0;
-  for (uint32_t cm=0;cm<0x10000;cm++){
-    if (!validConfig(cm)) continue; 
-    for (uint32_t sm=0;sm<0x10000;sm++){
-      if (!validConfig(sm)) continue; 
-      peel.reset();
-      peel.outd=conf&0xFF;
-      peel.fbd=(conf>>8)&0xFF;
-      peel.outneg=(conf>>16)&0xFF;
-      peel.clrMaskp=cm&0xFF;
-      peel.clrMaskn=(cm>>8)&0xFF;
-      peel.setMaskp=sm&0xFF;
-      peel.setMaskn=(sm>>8)&0xFF;
-      
-      if (peel.check(data)){
-        validSink.update(peel,batchInvalid);
-        batchInvalid=0;
-      }else{
-        batchInvalid++;
-      }
-      if (batchInvalid>=10000000){
-        validSink.update(batchInvalid);
-        batchInvalid=0;
-      }
-      
-    }
-  }      
+void testConf(PeelInfer& peel,uint32_t conf){
+  peel.reset();
+  peel.outd=conf&0xFF;
+  peel.fbd=(conf>>8)&0xFF;
+  peel.outneg=(conf>>16)&0xFF;
+  
+  if (peel.check(data)){
+    validSink.addValid(peel);
+  }else{
+    validSink.addInvalid();
+  }
 }
 
 
@@ -113,8 +88,10 @@ int main(int argc,char** argv)
     cerr<<"Unable to open output file "<<argv[2]<<endl;
     return -1;  
   }
+  cout<<"Possible confs are "<<0x1000000<<std::endl;
 
-  Peel peel;
+  
+  PeelInfer peel;
 #ifdef USE_OMP    
 #pragma omp parallel for private(peel)
 #endif

@@ -3,23 +3,26 @@
 
 #include <fstream>
 #include <mutex>
-#include "simul.h"
+#include "infer.h"
 
 class PeelFileSink{
 public:
   PeelFileSink();
   bool open(const char* filename);
   ~PeelFileSink();
-  void update(const Peel& p,size_t batchInvalid);
+  void update(const PeelInfer& p,size_t batchInvalid);
   void update(size_t batchInvalid);
+  void addValid(const PeelInfer& p);
+  void addInvalid();
 private:
   std::ofstream f;
   std::mutex m;
   size_t validCnt,invalidCnt;  
+  void printProgress();
 };
 
-std::ostream & operator<<(std::ostream &os, const Peel& p);
-std::istream & operator>>(std::istream &is, Peel& p);
+std::ostream & operator<<(std::ostream &os, const PeelInfer& p);
+std::istream & operator>>(std::istream &is, PeelInfer& p);
 
 
 #endif
