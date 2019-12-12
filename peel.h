@@ -1,6 +1,10 @@
 #ifndef _PEEL_H_
 #define _PEEL_H_
 
+#include <stdint.h>
+#include <stdbool.h>
+#include <iostream>
+
 struct BoolState{
   bool v,k;
 };
@@ -16,6 +20,9 @@ struct Data{
   bool edge;
 };
 
+
+std::ostream& operator<<(std::ostream&,const BoolState&);
+std::ostream& operator<<(std::ostream&,const State&);
 
 
 

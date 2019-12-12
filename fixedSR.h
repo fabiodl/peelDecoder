@@ -1,5 +1,5 @@
-#ifndef _SIMUL_
-#define _SIMUL_
+#ifndef _FIXEDSR_H__
+#define _FIXEDSR_H__
 
 #include <stdint.h>
 #include <vector>

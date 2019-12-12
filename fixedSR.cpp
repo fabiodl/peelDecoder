@@ -1,4 +1,4 @@
-#include "simul.h"
+#include "fixedSR.h"
 #include <cstring>
 
 inline static uint8_t mux(uint8_t m,uint8_t a,uint8_t b){

@@ -1,10 +1,15 @@
 
-OBJS := checkPeel.o dataLoad.o maximcrc.o peelBinarySink.o infer.o
+OBJS := checkPeel.o dataLoad.o maximcrc.o peelBinarySink.o infer.o peel.o
 CXXFLAGS= -fopenmp -O2 -std=c++11 -Wall
 # 
 # link
 checkPeel: $(OBJS)
 	g++ $(OBJS) -o $@ $(CXXFLAGS)
+
+TIOBJS := infer.o testInference.o peel.o
+testInference: $(TIOBJS)
+	g++ $(TIOBJS) -o $@  $(CXXFLAGS)
+
 
 # pull in dependency info for *existing* .o files
 -include $(OBJS:.o=.d)

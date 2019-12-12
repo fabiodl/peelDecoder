@@ -15,6 +15,7 @@ public:
   BoolState seenVal[256][256]; 
   void reset();
   bool check(BoolState& s,uint8_t inp,State fb);
+  BoolState predict(uint8_t inp,State fb);
 };
 
 class PeelBinarySink; //fw declaration
@@ -26,8 +27,10 @@ public:
   uint8_t fbd;
   uint8_t outneg;
   void reset();
-  bool check(uint8_t inp,uint8_t out,bool edge);
-  bool check(const std::vector<Data>& data);
+  bool check(uint8_t inp,uint8_t out,bool edge);//returns true on success
+  bool check(const std::vector<Data>& data);//returns true on success
+  void forgetQ();
+  State predict(uint8_t inp,bool edge);
 private:  
   friend std::ostream & operator<<(std::ostream &os, const PeelInfer& p);
   friend std::istream & operator>>(std::istream &os, PeelInfer& p);
