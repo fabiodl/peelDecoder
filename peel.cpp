@@ -13,3 +13,15 @@ std::ostream& operator<<(std::ostream& o,const State& s){
     }
    return o;
 }
+
+bool isSubset(State subset,State superset){
+  if (superset.k & ~ subset.k) return false;
+  if ( (subset.v ^ superset.v) & subset.k & superset.k) return false;
+  return true;
+}
+
+
+bool isIncluded(uint8_t v,State vset){
+  return !(vset.k & (v^vset.v)); //no mismatch on the known stuff
+
+}

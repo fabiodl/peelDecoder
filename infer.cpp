@@ -1,18 +1,6 @@
 #include "infer.h"
 #include <cstring>
 
-#ifdef DEBUG
-
-class VoidStream;
-template<typename T> VoidStream& operator<<(VoidStream& o,const T& t){}
-VoidStream debug;
-
-#else
-#include <iostream>
-#define debug cout
-
-#endif
-
 using namespace std;
 
 inline static uint8_t mux(uint8_t m,uint8_t a,uint8_t b){
@@ -56,8 +44,16 @@ inline static bool knownTrue(uint32_t mask,uint32_t einp,State fb){
 }
 
 
+inline static bool getAddress(uint8_t& idx,State fb,uint8_t fbd){
+  bool known=(fb.k|fbd)==0xFF;
+  if (known){
+    idx=fb.v&~fbd; //"canonical" address forces 0 on fbd lines
+  }
+  return known;
+}
 
-bool AndBlock::check(BoolState&s,uint8_t inp,State fb){
+
+bool AndBlock::check(BoolState&s,uint8_t inp,State fb,uint8_t fbd){
   uint32_t einp=extendInput(inp,fb);
   if (s.k && s.v){
     mask&= einp | (~fb.k<<8) | (~fb.k); //if not known leave unaltered
@@ -68,8 +64,9 @@ bool AndBlock::check(BoolState&s,uint8_t inp,State fb){
     s.k=s.v=true;
   }
   
-  if (fb.k==0xFF){
-    BoolState& seen=seenVal[inp][fb.v];
+  uint8_t idx;
+  if (getAddress(idx,fb,fbd)){
+    BoolState& seen=seenVal[inp][idx];
     if (seen.k && s.k && seen.v != s.v) return false;
     if (seen.k){
       s=seen;
@@ -161,9 +158,9 @@ bool PeelInfer::check(uint8_t inp,uint8_t out,bool edge){
   fb.v=backd.v;// would be mux(fbd,backd.v,backq.v), but backd.v and backq.v are the same
   fb.k=mux(fbd,backd.k,backq.k);
   
-  if (!clr.check(backclr,inp,fb)) return false;
+  if (!clr.check(backclr,inp,fb,fbd)) return false;
   if (edge){
-    if (!set.check(backset,inp,fb)) return false;
+    if (!set.check(backset,inp,fb,fbd)) return false;
     alor(q,backset);
   }
   alandnot(q,backclr);
@@ -176,10 +173,10 @@ bool PeelInfer::check(uint8_t inp,uint8_t out,bool edge){
         
   fb=mux(fbd,backd,q);
 
-        
-  if (fb.k==0xFF){
-    if (mergeState(backd,f[inp][fb.v])) return false;
-    f[inp][fb.v]=backd; //backd is already a merge with previous info by the previous line
+  uint8_t idx;
+  if (getAddress(idx,fb,fbd)){
+    if (mergeState(backd,f[inp][idx])) return false;
+    f[inp][idx]=backd; //backd is already a merge with previous info by the previous line
   } 
   return true;
 }
@@ -192,13 +189,13 @@ bool PeelInfer::check(const std::vector<Data>& data){
   return true;
 }
 
-inline static State apick(State* f,State idx){
+inline static State apick(State* f,State fb,uint8_t fbd){
   uint8_t canBe1=0x00;
   uint8_t canBe0=0x00;
 
   for (size_t i=0;i<255;i++){
-    if (idx.k & (i^idx.v)) continue;
-
+    if (i&fbd) continue; //only allow "canonical" idx
+    if (fb.k & (i^fb.v)) continue;
     //debug<<"considering fb idx"<<i<<"="<<f[i]<<"idx"<<idx<<endl;
 
     canBe0|=~f[i].v | ~f[i].k;
@@ -214,12 +211,13 @@ inline static State apick(State* f,State idx){
 }
 
 
-inline static BoolState apick(BoolState* f,State idx){
+inline static BoolState apick(BoolState* f,State fb,uint8_t fbd){
   bool canBe1=false;
   bool canBe0=false;
 
   for (size_t i=0;i<255;i++){
-    if (idx.k & (i^idx.v)) continue;
+    if (i&fbd) continue; //only allow "canonical" idx
+    if (fb.k & (i^fb.v)) continue;
     canBe0|=!f[i].v || !f[i].k;
     canBe1|= f[i].v || !f[i].k;
     if ((canBe0^canBe1) == 0) break; //we know nothing, abort
@@ -234,14 +232,14 @@ inline static BoolState apick(BoolState* f,State idx){
 
 
 
-BoolState AndBlock::predict(uint8_t inp,State fb){
+BoolState AndBlock::predict(uint8_t inp,State fb,uint8_t fbd){
   uint32_t einp=extendInput(inp,fb);
   if (knownTrue(mask,einp,fb)){
     BoolState r;
     r.v=r.k=true;
     return r;
   }
-  return apick(seenVal[inp],fb);  
+  return apick(seenVal[inp],fb,fbd);  
 }
 
 
@@ -250,19 +248,19 @@ State PeelInfer::predict(uint8_t inp,bool edge){
   fb.k=mux(fbd,0x00,q.k);
   fb.v=q.v; //for D, we do not know, so assign to q anyway
 
-  debug<<"fb="<<fb<<endl;
+  //debug<<"fb="<<fb<<endl;
 
-  State d=apick(f[inp],fb);
-  debug<<" d="<<d<<endl;
+  State d=apick(f[inp],fb,fbd);
+  //debug<<" d="<<d<<endl;
   if (edge){
-    BoolState setState=set.predict(inp,fb);
+    BoolState setState=set.predict(inp,fb,fbd);
     alor(q,setState);
-    debug<<" s="<<setState<<endl;
+    //debug<<" s="<<setState<<endl;
   }  
-  BoolState clrState=clr.predict(inp,fb);
+  BoolState clrState=clr.predict(inp,fb,fbd);
   alandnot(q,clrState);
-  debug<<" c="<<clrState<<endl;
-  debug<<" q="<<q<<endl;
+  //debug<<" c="<<clrState<<endl;
+  //debug<<" q="<<q<<endl;
   State out;
   out.v=mux(outd,d.v,q.v)^outneg;
   out.k=mux(outd,d.k,q.k);

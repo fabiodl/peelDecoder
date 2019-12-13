@@ -49,7 +49,7 @@ void PeelFileSink::update(size_t batchInvalid){
 
 void PeelFileSink::printProgress(){
   size_t p=(100*(validCnt+invalidCnt))>>24;
-  cout<<p<<"% :"<<validCnt <<" valid configurations "<<invalidCnt<<" invalid configurations\r"<<flush;
+  cout<<p<<"% :"<<validCnt <<" valid configurations "<<invalidCnt<<" invalid configurations ("<<(100*float(validCnt)/(validCnt+invalidCnt)  <<"%)\r"<<flush;
 }
 
 

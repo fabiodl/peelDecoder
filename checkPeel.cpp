@@ -28,17 +28,45 @@ vector<Data> data;
 
 PeelBinarySink validSink;
 
+
+
+bool verify(PeelInfer& p){
+  p.forgetQ();
+  for (size_t i=0;i<data.size();++i){
+    State pred=p.predict(data[i].inp,data[i].edge);
+    if (!isIncluded(data[i].out,pred)){
+      State real;
+      real.v=data[i].out;
+      real.k=1;
+      cerr<<"BUG, wrong prediction "<<endl<<pred<<endl<<real<<endl;      
+      return false;
+    }
+  }
+  cout<<endl<<"verify ok"<<endl;
+  return true;
+}
+
+
+static constexpr uint8_t NPASSES=2;
+
 void testConf(PeelInfer& peel,uint32_t conf){
   peel.reset();
   peel.outd=conf&0xFF;
   peel.fbd=(conf>>8)&0xFF;
   peel.outneg=(conf>>16)&0xFF;
-  
-  if (peel.check(data)){
-    validSink.addValid(peel);
-  }else{
-    validSink.addInvalid();
+
+  for (uint8_t i=0;i<NPASSES;i++){
+    if (!peel.check(data)){
+      validSink.addInvalid();
+      /*if (i>1){
+      std::cout<<"pass "<<(i+1)<<"reject"<<std::endl;
+      }*/
+      return;
+    }
   }
+  validSink.addValid(peel);  
+  //verify(peel);
+
 }
 
 
@@ -53,7 +81,7 @@ int main(int argc,char** argv)
     return 0;
   }
 
-  if (!loadTransitionsFile(data,argv[1])){   
+  if (!loadTripletFile(data,argv[1])){   
       cerr<<"Unable to open input file "<<argv[1]<<endl;
       return -1;
   }
@@ -62,7 +90,7 @@ int main(int argc,char** argv)
     cerr<<"Unable to open output file "<<argv[2]<<endl;
     return -1;  
   }  
-  cout<<"Possible confs are "<<0x1000000<<std::endl;
+  cout<<"Possible confs are "<<0x1000000<<" test data are "<<data.size()<<std::endl;
 
   
   PeelInfer peel;

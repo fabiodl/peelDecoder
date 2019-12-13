@@ -1,5 +1,6 @@
 #include "peelBinarySink.h"
 #include <iostream>
+#include <iomanip>
 
 using namespace std;
 
@@ -23,7 +24,7 @@ PeelBinarySink::~PeelBinarySink(){
 
 void PeelBinarySink::printProgress(){
   size_t p=(100*(validCnt+invalidCnt))>>24;
-  cout<<p<<"% :"<<validCnt <<" valid configurations "<<invalidCnt<<" invalid configurations\r"<<flush;
+  cout<<"tested "<<p<<"% :"<<validCnt <<" valid configurations "<<invalidCnt<<" invalid configurations ("<<setprecision(2)<<(100.0*validCnt/(validCnt+invalidCnt))  <<"%)          \r"<<flush;
 }
 
 void PeelBinarySink::addValid(const PeelInfer& p){

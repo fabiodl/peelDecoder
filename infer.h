@@ -14,8 +14,8 @@ public:
   uint32_t mask;
   BoolState seenVal[256][256]; 
   void reset();
-  bool check(BoolState& s,uint8_t inp,State fb);
-  BoolState predict(uint8_t inp,State fb);
+  bool check(BoolState& s,uint8_t inp,State fb,uint8_t fbd);
+  BoolState predict(uint8_t inp,State fb,uint8_t fbd);
 };
 
 class PeelBinarySink; //fw declaration

@@ -24,6 +24,8 @@ struct Data{
 std::ostream& operator<<(std::ostream&,const BoolState&);
 std::ostream& operator<<(std::ostream&,const State&);
 
+bool isSubset(State subset,State superset);
+bool isIncluded(uint8_t v,State vset);
 
 
 #endif
