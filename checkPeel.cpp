@@ -31,7 +31,7 @@ PeelBinarySink validSink;
 
 
 bool verify(PeelInfer& p){
-  p.forgetQ();
+  p.forgetState();
   for (size_t i=0;i<data.size();++i){
     State pred=p.predict(data[i].inp,data[i].edge);
     if (!isIncluded(data[i].out,pred)){
@@ -42,7 +42,7 @@ bool verify(PeelInfer& p){
       return false;
     }
   }
-  cout<<endl<<"verify ok"<<endl;
+  //cout<<endl<<"verify ok"<<endl;
   return true;
 }
 
@@ -65,8 +65,8 @@ void testConf(PeelInfer& peel,uint32_t conf){
     }
   }
   validSink.addValid(peel);  
-  //verify(peel);
-
+  verify(peel);
+  peel.getDeterministic();
 }
 
 

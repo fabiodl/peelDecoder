@@ -21,4 +21,18 @@ private:
 };
 
 
+
+class PeelBinarySource{
+public:
+  bool open(const char* filename);
+  PeelInfer readNext();
+  PeelInfer read(size_t idx);
+  std::vector<size_t> unknownCount();
+  size_t size(){return s;}
+private:
+  std::ifstream f;
+  size_t s;
+  
+};
+
 #endif

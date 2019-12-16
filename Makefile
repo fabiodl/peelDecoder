@@ -1,6 +1,6 @@
 
 OBJS := checkPeel.o dataLoad.o maximcrc.o peelBinarySink.o infer.o peel.o
-CXXFLAGS= -fopenmp -O2 -std=c++11 -Wall
+CXXFLAGS= -fopenmp -O2 -std=c++11 -Wall -g
 # 
 # link
 checkPeel: $(OBJS)
@@ -10,6 +10,13 @@ TIOBJS := infer.o testInference.o peel.o
 testInference: $(TIOBJS)
 	g++ $(TIOBJS) -o $@  $(CXXFLAGS)
 
+SCOBJS := scoreConfs.o peel.o peelBinarySink.o infer.o
+scoreConfs: $(SCOBJS)
+	g++ $(SCOBJS) -o $@  $(CXXFLAGS)
+
+
+
+all: checkPeel testInference scoreConfs
 
 # pull in dependency info for *existing* .o files
 -include $(OBJS:.o=.d)
@@ -32,6 +39,6 @@ testInference: $(TIOBJS)
 
 # remove compilation products
 clean:
-	rm -f checkPeel $(OBJS) *.d
+	rm -f checkPeel $(OBJS) $(TIOBJS) $(SCOBJS) *.d
 
 
