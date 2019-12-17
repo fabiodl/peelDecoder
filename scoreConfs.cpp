@@ -29,8 +29,5 @@ int main(int argc,char** argv){
       <<" fbd="<<(int)best.fbd
       <<" outneg="<<(int)best.outneg
       <<" unknowns="<<best.fUnknownCount()      
-      <<endl;
-
-  
-  
+      <<endl;    
 }

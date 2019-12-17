@@ -22,6 +22,7 @@ bool loadTripletFile(std::vector<Data>& data,const char* name){
       data[k].out=buffer[i+1];
       data[k].edge=(buffer[i] & 1) && !(prevInp & 1);
       prevInp=buffer[i];
+      k++;
     }
 
     file.close();

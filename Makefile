@@ -14,9 +14,11 @@ SCOBJS := scoreConfs.o peel.o peelBinarySink.o infer.o
 scoreConfs: $(SCOBJS)
 	g++ $(SCOBJS) -o $@  $(CXXFLAGS)
 
+TCOBJS := dataLoad.o trivialComb.o maximcrc.o
+trivialComb: $(TCOBJS)
+	g++ $(TCOBJS) -o $@  $(CXXFLAGS)
 
-
-all: checkPeel testInference scoreConfs
+all: checkPeel testInference scoreConfs trivialComb
 
 # pull in dependency info for *existing* .o files
 -include $(OBJS:.o=.d)
@@ -39,6 +41,6 @@ all: checkPeel testInference scoreConfs
 
 # remove compilation products
 clean:
-	rm -f checkPeel $(OBJS) $(TIOBJS) $(SCOBJS) *.d
+	rm -f checkPeel $(OBJS) $(TIOBJS) $(SCOBJS) $(TCOBJS) *.d
 
 
