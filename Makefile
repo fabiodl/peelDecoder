@@ -18,7 +18,11 @@ TCOBJS := dataLoad.o trivialComb.o maximcrc.o
 trivialComb: $(TCOBJS)
 	g++ $(TCOBJS) -o $@  $(CXXFLAGS)
 
-all: checkPeel testInference scoreConfs trivialComb
+FEOBJS := flipExtractor.o dataLoad.o maximcrc.o
+flipExtractor: $(FEOBJS)
+	g++ $(FEOBJS) -o $@ $(CXXFLAGS)
+
+all: checkPeel testInference scoreConfs trivialComb flipExtractor
 
 # pull in dependency info for *existing* .o files
 -include $(OBJS:.o=.d)
@@ -31,7 +35,7 @@ all: checkPeel testInference scoreConfs trivialComb
 #   fmt -1: list words one per line
 #   sed:    strip leading spaces
 #   sed:    add trailing colons
-%.o: %.c
+%.o: %.cpp
 	g++ -c $(CXXFLAGS) $*.c -o $*.o
 	g++ -MM $(CXXFLAGS) $*.c > $*.d
 	@cp -f $*.d $*.d.tmp
@@ -41,6 +45,6 @@ all: checkPeel testInference scoreConfs trivialComb
 
 # remove compilation products
 clean:
-	rm -f checkPeel $(OBJS) $(TIOBJS) $(SCOBJS) $(TCOBJS) *.d
+	rm -f checkPeel $(OBJS) $(TIOBJS) $(SCOBJS) $(TCOBJS) $(FEOBJS) *.d
 
 

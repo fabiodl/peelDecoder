@@ -1,6 +1,6 @@
 #include <vector>
 #include <iostream>
-
+#include <iomanip>
 #include "infer.h"
 #include "peelBinarySink.h"
 #include "dataLoad.h"
@@ -37,8 +37,14 @@ bool verify(PeelInfer& p){
     if (!isIncluded(data[i].out,pred)){
       State real;
       real.v=data[i].out;
-      real.k=1;
-      cerr<<"BUG, wrong prediction "<<endl<<pred<<endl<<real<<endl;      
+      real.k=0xFF;
+      cerr<<endl<<"BUG, wrong prediction for index "<<dec<<i<<endl<<pred<<endl<<real<<endl;      
+      cerr<<hex<<setfill('0')<<setw(2)
+          <<" outd "<<(int)p.outd
+          <<" fbd "<<(int)p.fbd
+          <<" outneg "<<(int)p.outneg
+          <<endl;
+      
       return false;
     }
   }
@@ -47,7 +53,7 @@ bool verify(PeelInfer& p){
 }
 
 
-static constexpr uint8_t NPASSES=2;
+static constexpr uint8_t NPASSES=3;
 
 void testConf(PeelInfer& peel,uint32_t conf){
   peel.reset();
@@ -58,9 +64,9 @@ void testConf(PeelInfer& peel,uint32_t conf){
   for (uint8_t i=0;i<NPASSES;i++){
     if (!peel.check(data)){
       validSink.addInvalid();
-      /*if (i>1){
-      std::cout<<"pass "<<(i+1)<<"reject"<<std::endl;
-      }*/
+      if (i>1){
+        std::cout<<"pass "<<(i+1)<<"reject"<<std::endl;
+      }
       return;
     }
   }

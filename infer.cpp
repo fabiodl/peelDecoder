@@ -1,6 +1,7 @@
 #include "infer.h"
 #include <cstring>
 #include <iomanip>
+#include <sstream>
 
 using namespace std;
 
@@ -140,6 +141,7 @@ inline static bool almismatch(State&a, State& b){
   return (a.v^b.v)&a.k&b.k;
 }
 
+
 bool PeelInfer::check(uint8_t inp,uint8_t out,bool edge){   
     
   State backq,backd,fb;
@@ -232,6 +234,114 @@ bool PeelInfer::check(uint8_t inp,uint8_t out,bool edge){
   } 
   return true;
 }
+
+
+static inline std::string binString(uint8_t x){
+  std::stringstream ss;
+  for (int i=7;i>=0;--i){
+    ss<<( (x&(1<<i))?'1':'0');
+  }
+  return ss.str();
+}
+
+
+/*bool PeelInfer::checkAndDescribe(uint8_t inp,uint8_t out,bool edge){   
+    
+  State backq,backd,fb;
+  BoolState backclr,backset;
+  uint8_t idx;
+  
+  backd.v=backq.v=out^outneg;
+  backd.k=outd;
+  backq.k=~outd;
+
+  cout<<"inp "<<binString(inp)<<"out "<<binString(out)<<endl;
+  cout<<"backd"<<backd<<
+  
+  if (backq.v & backq.k){ //if there's a sure 1, clr is surely false
+    backclr.v=false;
+    backclr.k=true;
+  }else{
+    backclr.k=false;
+  }
+
+
+  if (edge && (backq.k & ~backq.v)){ //if there's a sure 0, set is surely false
+    backset.v=false;
+    backset.k=true;
+  }else{
+    backset.k=false;
+  }
+
+
+  //cout<<"backq "<<backq<<" backd "<<backd<<" backclr "<<backclr<<" backset "<<backset<<endl;
+  
+    
+  if (almismatch(backq,q)){   //q is pre-edge
+    //cout<<"q changed"<<endl;
+    if (edge){
+      if (getAddress(idx,fb,fbd)){//fb is pre-edge
+        //cout<<"address identified"<<endl;
+        State fwd=f[inp][idx];
+        if (almismatch(fwd,backq)){          
+          if ((backq.v & backq.k)==0){
+            backclr.v=true;
+            backclr.k=true;
+            backq.v=0;
+            backq.k=0xFF;
+          }else if ((backq.k & backq.v) == backq.k){
+            backset.v=true;
+            backset.k=true;
+            backq.v=0xFF;//no possible mismatches given the if is true
+            backq.k=0xFF;            
+          }else{
+            return false;
+          }              
+        }//if mismatch(fwd,backq)        
+      }//if getaddress
+    }else{ //not edge
+      if ((backq.v & backq.k)==0){
+        backclr.v=true;
+        backclr.k=true;
+        backq.v=0;
+        backq.k=0xFF;
+      }else{
+        return false;
+      }
+    }
+    
+  }//mismatch backq - q
+
+
+  if (edge){
+    if (!set.check(backset,inp,fb,fbd)) return false;
+    alor(backq,backset);
+  }
+  
+  fb=mux(fbd,backd,backq);
+  
+  if (!clr.check(backclr,inp,fb,fbd)) return false;
+  alandnot(backq,backclr);
+
+ 
+  if (edge && backclr.k && !backclr.v &&  backset.k && !backset.v){ //there's a bridge
+    backq.k=backd.k=0xFF;      
+  }      
+
+  q=backq;
+  
+
+  if (getAddress(idx,fb,fbd)){
+    //cout<<"address identified for storing"<<endl;
+    if (!mergeState(backd,f[inp][idx])) return false;
+    f[inp][idx]=backd; //backd is already a merge with previous info by the previous line
+    //cout<<"stored f"<<(int)inp<<" "<<(int)idx<<" ="<<backd<<endl;
+  } 
+  return true;
+}
+
+*/
+
 
 
 bool PeelInfer::check(const std::vector<Data>& data){
