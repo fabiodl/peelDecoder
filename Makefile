@@ -36,8 +36,8 @@ all: checkPeel testInference scoreConfs trivialComb flipExtractor
 #   sed:    strip leading spaces
 #   sed:    add trailing colons
 %.o: %.cpp
-	g++ -c $(CXXFLAGS) $*.c -o $*.o
-	g++ -MM $(CXXFLAGS) $*.c > $*.d
+	g++ -c $(CXXFLAGS) $*.cpp -o $*.o
+	g++ -MM $(CXXFLAGS) $*.cpp > $*.d
 	@cp -f $*.d $*.d.tmp
 	@sed -e 's/.*://' -e 's/\\$$//' < $*.d.tmp | fmt -1 | \
 	  sed -e 's/^ *//' -e 's/$$/:/' >> $*.d

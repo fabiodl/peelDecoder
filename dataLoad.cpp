@@ -1,5 +1,6 @@
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include "dataLoad.h"
 #include "maximcrc.h"
 using namespace std;
@@ -91,6 +92,14 @@ static inline uint8_t flip(const uint8_t* buff,uint8_t i){
   }
 }
 
+
+void hexPrint(uint8_t* buffer,size_t n){
+  cout<<setfill('0')<<setw(2)<<hex;
+  for (size_t i=0;i<n;i++){
+    cout<<(int)buffer[i]<<" ";
+  }
+}
+
 bool loadFlipFile(std::vector<Data>& data,const char* name){
   ifstream file(name, ios::in|ios::binary|ios::ate);
   if (file.is_open())
@@ -103,18 +112,18 @@ bool loadFlipFile(std::vector<Data>& data,const char* name){
     data.resize(size/14*9);
     size=size/14;
     uint8_t prevInp=0;
-    char buffer[14];
+    uint8_t buffer[14];
     size_t k=0;    
     for (size_t chunk=0;chunk<size;chunk++){
-      file.read(buffer,14);
+      file.read(reinterpret_cast<char*>(buffer),14);
       
-      data[k+0].inp=buffer[0];      
       for (size_t i=0;i<9;i++){
-        data[k+i].inp=buffer[1+i];
+        data[k+i].out=buffer[1+i];
       }
-      data[k].out=buffer[0];
+      data[k+0].inp=buffer[0];      
       for (size_t i=0;i<8;i++){
-        data[k+1+i].out=data[k+i].out^=flip(reinterpret_cast<uint8_t*>(buffer+10),i);
+        //std::cout<<"F"<<(int)flip(buffer+10,i)<<endl;
+        data[k+1+i].inp=data[k+i].inp^(1<<flip(buffer+10,i));
       }
       
       uint8_t crc=0;
@@ -126,12 +135,20 @@ bool loadFlipFile(std::vector<Data>& data,const char* name){
         prevInp=data[k+i].inp;
       }
       
-      if (crc!=buffer[k+13]){
+      if (crc!=buffer[13]){
+        hexPrint((uint8_t*)buffer,14);
+        cout<<endl<<"IOS"<<endl;
+        for (int i=0;i<9;i++){
+          hexPrint(&data[k+i].inp,1);
+          hexPrint(&data[k+i].out,1);
+          cout<<endl;
+        }
+        cout<<"crc"<<(int)crc<<endl;
         std::cerr<<"CRC mismatch, truncating at "<<k<<std::endl;
-        data.resize(k);
-        break;
+        //data.resize(k);
+        //break;
       }     
-      k+=14;
+      k+=9;
     }
 
     file.close();
