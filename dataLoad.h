@@ -6,10 +6,10 @@
 
 bool loadTripletFile(std::vector<Data>& data,const char* name);
 bool loadTransitionsFile(std::vector<Data>& data,const char* name);
-bool loadFlipFile(std::vector<Data>& data,const char* name);
+bool loadFlipFile(std::vector<std::vector<Data> >& data,const char* name);
 
 bool saveIoFile(const std::vector<Data>& data,const char* name);
-  
+bool loadIoFile(std::vector<Data>& data,const char* name);
 
 
 #endif

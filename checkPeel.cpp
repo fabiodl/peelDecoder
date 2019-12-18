@@ -87,7 +87,7 @@ int main(int argc,char** argv)
     return 0;
   }
 
-  if (!loadTripletFile(data,argv[1])){   
+  if (!loadIoFile(data,argv[1])){   
       cerr<<"Unable to open input file "<<argv[1]<<endl;
       return -1;
   }

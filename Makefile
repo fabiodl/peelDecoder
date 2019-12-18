@@ -1,6 +1,6 @@
 
 OBJS := checkPeel.o dataLoad.o maximcrc.o peelBinarySink.o infer.o peel.o
-CXXFLAGS= -fopenmp -O2 -std=c++11 -Wall -g
+CXXFLAGS= -fopenmp -O2 -std=c++11 -Wall -g -I ../OpenQM
 # 
 # link
 checkPeel: $(OBJS)
@@ -14,8 +14,8 @@ SCOBJS := scoreConfs.o peel.o peelBinarySink.o infer.o
 scoreConfs: $(SCOBJS)
 	g++ $(SCOBJS) -o $@  $(CXXFLAGS)
 
-TCOBJS := dataLoad.o trivialComb.o maximcrc.o
-trivialComb: $(TCOBJS)
+TCOBJS := dataLoad.o trivialComb.o maximcrc.o ../OpenQM/implicant.o ../OpenQM/qm.o
+trivialComb: $(TCOBJS) 
 	g++ $(TCOBJS) -o $@  $(CXXFLAGS)
 
 FEOBJS := flipExtractor.o dataLoad.o maximcrc.o

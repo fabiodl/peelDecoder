@@ -145,9 +145,11 @@ bool loadFlipFile(std::vector<Data>& data,const char* name){
         }
         cout<<"crc"<<(int)crc<<endl;
         std::cerr<<"CRC mismatch, truncating at "<<k<<std::endl;
-        //data.resize(k);
-        //break;
-      }     
+        data.resize(k);
+        //char skip;
+        //file.read(&skip,1);
+        break;
+      }
       k+=9;
     }
 
@@ -169,6 +171,35 @@ bool saveIoFile(const std::vector<Data>& data,const char* name){
      f.write(reinterpret_cast<const char*>(&d.out),1);
    }
 
+   return true;
+   
+ }
+ return false;
+}
+
+
+bool loadIoFile(std::vector<Data>& data,const char* name){
+  ifstream f(name, ios::binary|ios::ate);
+  if (f.is_open()){
+    ifstream file(name, ios::in|ios::binary|ios::ate);
+    size_t size = file.tellg();
+    if (size%2){
+      std::cerr<<"File is truncated"<<std::endl;
+    }
+    file.seekg (0, ios::beg);    
+    size=size/2;
+    data.resize(size);
+
+    uint8_t prevInp=0;
+    for (size_t i=0;i<size;i++){
+      Data& d=data[i];
+      uint8_t buff[2];
+      file.read((char*)buff,2);
+      d.inp=buff[0];
+      d.out=buff[1];
+      data[i].edge=(d.inp & 1) && !(prevInp & 1);
+      prevInp=d.inp;
+    }
    return true;
    
  }

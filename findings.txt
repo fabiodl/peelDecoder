@@ -1,0 +1,99 @@
+=purely D=30
+Input 0 influences cb
+Input 1 influences cb
+Input 2 influences cb
+Input 3 influences eb
+Input 4 influences cb
+Input 5 influences db
+Input 6 influences cb
+Input 7 influences cb
+output cdcas0 depends only on ~cas0 
+output o6 depends only on ~ras2 
+=Input levels to output levels=
+asel 
+~fdc 
+~rom 
+~ras2 0->o6-0 1->o6-1 
+~cas2 1->ff_cp-1 
+~cas0 1->tr_dir-0 1->~tr_ce-0 1->ff_cp-1 1->~ff_oe-1 0->cdcas0-1 1->cdcas0-0 
+wr 1->ff_cp-1 1->o7-1 
+fres 
+=Forcers for each output=
+tr_dir ~cas0-1->0 
+~tr_ce ~cas0-1->0 
+ff_cp ~cas2-1->1 ~cas0-1->1 wr-1->1 
+~ff_oe ~cas0-1->1 
+cdcas0 ~cas0-0->1 ~cas0-1->0 
+o6 ~ras2-0->0 ~ras2-1->1 
+o7 wr-1->1 
+o8 
+=Latched levels to output levels=
+Ltr_dir 
+L~tr_ce 
+Lff_cp 
+L~ff_oe 
+Lcdcas0 
+Lo6 
+Lo7 
+Lo8 
+no tr0->0
+inp c0->c8 out dd->fdtr[3][5]=true
+inp c8->e8 out fd->ectr[5][0]=true
+inp c8->e8 out fd->ectr[5][4]=true
+inp dd->d5 out fd->5dtr[3][7]=true
+inp 8d->85 out 7d->57tr[3][1]=true
+inp 8d->85 out 7d->57tr[3][3]=true
+inp 85->a5 out 57->4ctr[5][1]=true
+inp 85->a5 out 57->4ctr[5][3]=true
+inp 84->86 out dd->dctr[1][0]=true
+inp 1f->1b out fc->fdtr[2][0]=true
+inp 36->37 out 4c->ctr[0][6]=true
+inp 97->87 out 1d->13tr[4][1]=true
+inp 97->87 out 1d->13tr[4][2]=true
+inp 97->87 out 1d->13tr[4][3]=true
+inp 86->87 out 13->57tr[0][2]=true
+inp b4->f4 out c->4ctr[6][6]=true
+inp 97->9f out 5d->fctr[3][0]=true
+inp 6e->7e out 6c->ectr[4][7]=true
+inp ab->8b out 2c->33tr[5][2]=true
+inp cf->df out 77->fctr[4][0]=true
+inp 87->c7 out 13->57tr[6][2]=true
+asel->ff_cp
+asel->o7
+~fdc->tr_dir
+~rom->tr_dir
+~ras2->tr_dir
+~ras2->~tr_ce
+~ras2->~ff_oe
+~ras2->o6
+~ras2->o8
+~cas2->tr_dir
+~cas2->~tr_ce
+~cas2->ff_cp
+~cas2->~ff_oe
+~cas2->o8
+~cas0->tr_dir
+~cas0->~tr_ce
+~cas0->ff_cp
+~cas0->~ff_oe
+~cas0->cdcas0
+wr->ff_cp
+wr->o7
+=inp to out=
+asel r->ff_cp-r* r->o7-f* r->o7-r* 
+~fdc f->tr_dir-r* r->tr_dir-f* 
+~rom f->tr_dir-r* r->tr_dir-f* 
+~ras2 f->tr_dir-r* r->tr_dir-f* f->~tr_ce-r* r->~tr_ce-f* f->~ff_oe-f* r->~ff_oe-r* f->o6-f r->o6-r f->o8-f* r->o8-r* 
+~cas2 r->tr_dir-f* f->~tr_ce-r* r->~tr_ce-f* f->ff_cp-f* r->ff_cp-r f->~ff_oe-f* r->~ff_oe-r* r->o8-r* 
+~cas0 f->tr_dir-r* r->tr_dir-f f->~tr_ce-r* r->~tr_ce-f f->ff_cp-f* r->ff_cp-r f->~ff_oe-f* r->~ff_oe-r f->cdcas0-r r->cdcas0-f 
+wr r->ff_cp-r r->o7-r 
+fres 
+=out influenced by=
+tr_dir ~fdc-f->r* ~fdc-r->f* ~rom-f->r* ~rom-r->f* ~ras2-f->r* ~ras2-r->f* ~cas2-r->f* ~cas0-f->r* ~cas0-r->f 
+~tr_ce ~ras2-f->r* ~ras2-r->f* ~cas2-f->r* ~cas2-r->f* ~cas0-f->r* ~cas0-r->f 
+ff_cp asel-r->r* ~cas2-f->f* ~cas2-r->r ~cas0-f->f* ~cas0-r->r wr-r->r 
+~ff_oe ~ras2-f->f* ~ras2-r->r* ~cas2-f->f* ~cas2-r->r* ~cas0-f->f* ~cas0-r->r 
+cdcas0 ~cas0-f->r ~cas0-r->f 
+o6 ~ras2-f->f ~ras2-r->r 
+o7 asel-r->f* asel-r->r* wr-r->r 
+o8 ~ras2-f->f* ~ras2-r->r* ~cas2-r->r*
