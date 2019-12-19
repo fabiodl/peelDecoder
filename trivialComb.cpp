@@ -1,6 +1,8 @@
 #include "dataLoad.h"
 #include <qm.h>
 #include <map>
+#include <set>
+#include <algorithm>
 
 std::vector<std::string> inpNames={"asel","~fdc","~rom","~ras2","~cas2","~cas0","wr","fres"};
 std::vector<std::string> outNames={"tr_dir","~tr_ce","ff_cp","~ff_oe","cdcas0","o6","o7","o8"};
@@ -730,6 +732,205 @@ void findUnseen(){
   std::cout<<"=never seen end="<<endl;
 }
 
+struct FlipIndex{
+
+  std::map<uint8_t,uint8_t> idx;
+  
+  FlipIndex(){
+    for (uint8_t i=0;i<8;i++){
+      idx[1<<i]=i;
+    }
+  }
+};
+
+FlipIndex flip;
+
+
+
+template<typename T>
+bool isSubSequence(const T& str1,const  T& str2,size_t m, size_t n) 
+{ 
+    // Base Cases 
+    if (m == 0) return true; 
+    if (n == 0) return false; 
+  
+    // If last characters of two strings are matching 
+    if (str1[m-1] == str2[n-1]) 
+        return isSubSequence(str1, str2, m-1, n-1); 
+  
+    // If last characters are not matching 
+    return isSubSequence(str1, str2, m, n-1); 
+} 
+
+
+void printOutputEffect(uint8_t prev,uint8_t next){
+  for (uint8_t b=0;b<8;b++){
+    uint8_t mask=1<<b;
+    if ((prev^next)&mask){
+      cout<<outNames[b]<<"-"<<edgeName[next&mask?1:0]<<" ";
+    }
+  }
+}
+
+class TrSeq{
+public:
+  std::vector<std::pair<uint8_t,bool> > changes;
+  size_t b,e;
+  
+  TrSeq(size_t begin,size_t end):
+    b(begin),e(end)
+  {
+    for (size_t i=begin+1;i<=end;i++){
+      uint8_t x=data[i].inp^data[i-1].inp;
+      bool s=data[i].inp&x;
+      changes.push_back(make_pair(x,s));
+    }        
+  }
+  
+  bool contains(const TrSeq& sub){
+    return isSubSequence(sub.changes,changes,sub.changes.size(),changes.size());
+
+      //std::search(changes.begin(), changes.end(), sub.changes.begin(), sub.changes.end()) != changes.end();
+  }
+
+
+  void print(){
+    cout<<"Sequence ";
+    for (auto& c:changes){
+      cout<<inpNames[flip.idx[c.first]]<<"-"<<edgeName[c.second]<<" ";
+    }
+    cout<<endl;    
+    for (size_t i=b;i<=e;i++){
+      cout<<hex<<(int)data[i].inp<<" "<<(int)data[i].out<<endl;
+    }
+        
+    cout<<"Effects"<<endl;
+    for (size_t i=b;i<e;i++){
+      printOutputEffect(data[i].out,data[i+1].out);
+      cout<<endl;
+    }
+    cout<<"Net effect ";
+    printOutputEffect(data[b].out,data[e].out);
+    cout<<endl;
+    
+    
+
+  }
+  
+};
+
+
+void findStateChanges(){
+  map<uint8_t,size_t> pendingSeq;
+
+  vector<pair<size_t,size_t> > seqs;
+
+  //cout<<"looking for sequences"<<endl;
+  
+  for (size_t i=0;i<data.size();++i){
+    map<uint8_t,size_t>::iterator  it;
+    if ((it=pendingSeq.find(data[i].inp))!=pendingSeq.end()){
+      if (data[it->second].out!=data[i].out){
+        seqs.emplace_back(pair<size_t,size_t>(it->second,i));
+        pendingSeq.clear();
+      }
+    }else{
+      pendingSeq[data[i].inp]=i;
+    }
+  }
+
+  //cout<<"found "<<dec<<seqs.size()<<" sequences. Sorting."<<endl;
+  
+  sort(seqs.begin(),seqs.end(),[](const pair<size_t,size_t>& a,const pair<size_t,size_t>& b){
+                                 return a.second-a.first<b.second-b.first;
+                               }
+    );
+
+  
+  /*for (auto & s:seqs){
+    cout<<"Sequence"<<endl;
+    for (size_t i=s.first;i<=s.second;i++){
+      cout<<hex<<(int)data[i].inp<<" "<<(int)data[i].out<<endl;
+      }
+    }*/
+
+  //cout<<"Finding essential sequences"<<endl;
+  
+  vector<TrSeq> trseqs;
+
+  size_t discarded=0;
+  
+  for (auto& s:seqs){
+    TrSeq c(s.first,s.second);
+    bool ok=true;
+    for (auto& t:trseqs){
+      if (c.contains(t)){
+        ok=false;
+        break;
+      }
+    }
+    if (ok){
+      trseqs.push_back(c);   
+    }else{
+      discarded++;
+    }
+    //cout<<"essential "<<trseqs.size()<<" discarded "<<discarded<<"\r"<<flush;
+  }
+
+  //cout<<endl;
+  cout<<"=State changing transitions="<<endl;
+  for (auto& e:trseqs){
+      e.print();
+  }
+
+}
+
+void findReflipChangers(){
+
+  std::set<uint8_t> changers;
+  
+  for (size_t i=0;i<data.size()-2;i++){
+    if ( (data[i].inp==data[i+2].inp) && (data[i].out!=data[i+2].out) ){
+      uint8_t netFlip=data[i].out^data[i+2].out;    
+      bool found=false;
+      if ((data[i].out^data[i+1].out)&netFlip){
+        changers.insert(data[i+1].inp);
+        found=true;
+      }
+      if ((data[i+1].out^data[i+2].out)&netFlip){
+        changers.insert(data[i+2].inp);
+        if (found){
+          cout<<"DOUBLE PUSH"<<endl;
+        }
+      }            
+    }    
+  }//for i
+
+  /*for (auto& c:changers){
+    cout<<hex<<(int)c<<endl;
+    }*/
+  
+  std::vector<Implicant> il;
+  size_t n=8;
+  
+  vector<char> buffer(n+1);
+  buffer[n]=0;
+  for (auto& c:changers){
+    for (size_t b=0;b<n;b++){
+      if (c & (1<<b)){
+        buffer[n-1-b]='1';
+      }else{
+        buffer[n-1-b]='0';
+      }
+    }
+    il.push_back(Implicant(string(buffer.data())));
+  }
+  auto sol=makeQM(il,vector<Implicant>());
+
+  cout<<"=state changer expression="<<endl;
+  cout<<getVerilogExpression(sol,inpNames)<<endl;
+  
+}
 
 int main(int argc,char** argv){
 
@@ -747,6 +948,8 @@ int main(int argc,char** argv){
   
 
   loadIoFile(data,argv[1]);
+  findStateChanges();
+  findReflipChangers();
   //analysisO7();
   //o7dld();
   //findUnseen();

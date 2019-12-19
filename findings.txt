@@ -97,3 +97,62 @@ cdcas0 ~cas0-f->r ~cas0-r->f
 o6 ~ras2-f->f ~ras2-r->r 
 o7 asel-r->f* asel-r->r* wr-r->r 
 o8 ~ras2-f->f* ~ras2-r->r* ~cas2-r->r*
+=State changing transitions=
+Sequence ~cas0-r ~cas0-f 
+82 57
+a2 4c
+82 5d
+Effects
+tr_dir-f ~tr_ce-f ~ff_oe-r cdcas0-f 
+tr_dir-r cdcas0-r 
+Net effect ~tr_ce-f ~ff_oe-r 
+Sequence ~ras2-r ~ras2-f 
+c5 5d
+cd 7d
+c5 57
+Effects
+o6-r 
+~tr_ce-r ~ff_oe-f o6-f 
+Net effect ~tr_ce-r ~ff_oe-f 
+Sequence ~cas2-r ~cas2-f 
+ea 6c
+fa ec
+ea ec
+Effects
+o8-r 
+
+Net effect o8-r 
+Sequence ~ras2-f ~ras2-r 
+8 7d
+0 57
+8 77
+Effects
+~tr_ce-r ~ff_oe-f o6-f 
+o6-r 
+Net effect ~tr_ce-r ~ff_oe-f 
+Sequence wr-r wr-f 
+bd ac
+fd ec
+bd ec
+Effects
+o7-r 
+
+Net effect o7-r 
+Sequence asel-r asel-f 
+b6 4c
+b7 c
+b6 c
+Effects
+o7-f 
+
+Net effect o7-f 
+Sequence asel-f asel-r 
+b1 4c
+b0 4c
+b1 c
+Effects
+
+o7-f 
+Net effect o7-f 
+=state changer expression=
+asel&~~fdc | asel&~~rom | ~~ras2 | ~cas2 | ~cas0 | wr
