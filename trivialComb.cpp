@@ -467,9 +467,9 @@ void findTransitions(){
 }//findTransitions
 
 
+
 struct F{
 
-  
   std::vector<BoolState> f;
   
   F(size_t nbits):
@@ -485,10 +485,40 @@ struct F{
     if (f[idx].k && (f[idx].v^val)){
       return false;
     }
-    if (!f[idx].k){
-      //cout<<"learnt "<<hex<<idx<<"="<<val<<endl;
-    }
+    /*if (!f[idx].k){
+      cout<<"learnt "<<hex<<idx<<"="<<val<<endl;
+      }*/
     f[idx].k=true;
+    f[idx].v=val;
+    return true;
+  }
+
+};
+
+
+
+
+struct Func{
+
+  std::vector<State> f;
+  
+  Func(size_t nbits):
+    f(1<<nbits)
+  {    
+    for (State& s:f){
+      s.k=0;
+    }
+  }
+
+  bool check(size_t idx,uint8_t val){
+    //cout<<"checking"<<idx<<"size"<<f.size()<<endl;
+    if (f[idx].k & (f[idx].v^val)){
+      return false;
+    }
+    /*if (!f[idx].k){
+      cout<<"learnt "<<hex<<idx<<"="<<val<<endl;
+      }*/
+    f[idx].k=0xFF;
     f[idx].v=val;
     return true;
   }
@@ -885,25 +915,23 @@ void findStateChanges(){
 
 }
 
-void findReflipChangers(){
+map<uint8_t,uint8_t> findReflipChangers(){
 
-  std::set<uint8_t> changers;
+  map<uint8_t,uint8_t> changers;
   
   for (size_t i=0;i<data.size()-2;i++){
     if ( (data[i].inp==data[i+2].inp) && (data[i].out!=data[i+2].out) ){
       uint8_t netFlip=data[i].out^data[i+2].out;    
-      bool found=false;
-      if ((data[i].out^data[i+1].out)&netFlip){
-        changers.insert(data[i+1].inp);
-        found=true;
-      }
-      if ((data[i+1].out^data[i+2].out)&netFlip){
-        changers.insert(data[i+2].inp);
-        if (found){
-          cout<<"DOUBLE PUSH"<<endl;
+      size_t idx=((data[i].out^data[i+1].out)&netFlip)?(i+1):(i+2);
+      map<uint8_t,uint8_t>::iterator it;
+      if ( (it=changers.find(data[idx].inp))!=changers.end()){
+        if (it->second!=data[idx].out){
+          cout<<"spurious clr"<<hex<<(int)data[idx].inp<<endl;
         }
-      }            
-    }    
+      }else{
+        changers[data[idx].inp]=data[idx].out;
+      }
+    }
   }//for i
 
   /*for (auto& c:changers){
@@ -917,7 +945,7 @@ void findReflipChangers(){
   buffer[n]=0;
   for (auto& c:changers){
     for (size_t b=0;b<n;b++){
-      if (c & (1<<b)){
+      if (c.first & (1<<b)){
         buffer[n-1-b]='1';
       }else{
         buffer[n-1-b]='0';
@@ -929,8 +957,45 @@ void findReflipChangers(){
 
   cout<<"=state changer expression="<<endl;
   cout<<getVerilogExpression(sol,inpNames)<<endl;
-  
+  return changers;
 }
+
+
+  /*void checkClr(){
+
+  Func f(17);
+
+  bool isClr[256];
+  {
+    set<uint8_t> changers=findReflipChangers();
+    for (int i=0;i<256;i++){
+      isClr[i]=!(i&1) && (changers.find(i)!=changers.end());
+    }
+    
+  }
+  
+
+  bool stateKnown=false;
+  uint16_t state=0;
+  
+  for(const Data& d:data){
+    if (d.edge){
+      state=d.out;
+      stateKnown=true;
+    }
+    if (isClr[d.inp]){
+      state=0x100;
+      stateKnown=true;
+    }
+    if (stateKnown&& !f.check( (state<<8)|d.inp,d.out)){
+      cout<<"non deterministic for state "<<hex<<state<<endl;
+      return;
+    }   
+  }
+  cout<<"Deterministic"<<endl;  
+}
+  */
+
 
 int main(int argc,char** argv){
 
@@ -948,8 +1013,9 @@ int main(int argc,char** argv){
   
 
   loadIoFile(data,argv[1]);
-  findStateChanges();
+  //findStateChanges();
   findReflipChangers();
+  //checkClr();
   //analysisO7();
   //o7dld();
   //findUnseen();
