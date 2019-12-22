@@ -288,8 +288,10 @@ bool loadVcdFile(std::vector<Data>& data,const char* name){
   uint16_t state=0;
   size_t prevT=0;
   bool pushingReady=false;
-  size_t minTime=0xFFFF;
-  size_t maxTime=0;
+  size_t minIdt,minOdt;
+  minIdt=minOdt=0xFFFF;
+  size_t maxIdt,maxOdt;
+  maxIdt=maxOdt=0;
   while(getline(f,line)){
     std::istringstream iss(line);
     char sharp;
@@ -312,16 +314,16 @@ bool loadVcdFile(std::vector<Data>& data,const char* name){
       }
     }
     //cout<<hex<<"state"<<newstate<<endl;
+    size_t dt=t-prevT;
     if ((state^newstate)&0xFF){
-      size_t dt=t-prevT;
       if (pushingReady){
         if (dt<80){
           cout<<"Warning: Input changed after "<<(t-prevT)<<"@ t="<<t<<endl;
         }else if (dt>150){
           cout<<"Warning: Input changed after "<<(t-prevT)<<"@ t="<<t<<endl;
         }else{
-          minTime=min(minTime,dt);
-          maxTime=max(maxTime,dt);
+          minIdt=min(minIdt,dt);
+          maxIdt=max(maxIdt,dt);
         }
         Data d;
         d.inp=state&0xFF;
@@ -332,15 +334,19 @@ bool loadVcdFile(std::vector<Data>& data,const char* name){
         pushingReady=true;
       }
       prevT=t;
-    }
-    if ((state^newstate)&0xFF00){
-      if (t-prevT>2){
-        cout<<"Warning: Output changed after "<<(t-prevT)<<"@ t="<<t<<endl;
+      dt=0;
+    }    
+    if ((state^newstate)&0xFF00){      
+      if (dt>2){
+        cout<<"Warning: Output changed after "<<(t-prevT)<<" dt "<<dt<<"@ t="<<t<<endl;
       }
+      minOdt=min(minOdt,dt);
+      maxOdt=max(maxOdt,dt);
     }
     state=newstate;
   }
   
-  cout<<dec<<"min DT "<<minTime<<" max DT "<<maxTime<<endl;
+  cout<<dec<<"min IDT "<<minIdt<<" max IDT "<<maxIdt<<endl;
+  cout<<dec<<"min ODT "<<minOdt<<" max ODT "<<maxOdt<<endl;
   return true;
 }
