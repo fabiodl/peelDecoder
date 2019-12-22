@@ -915,21 +915,35 @@ void findStateChanges(){
 
 }
 
-map<uint8_t,uint8_t> findReflipChangers(){
+//map<uint8_t,uint8_t>
+void findReflipChangers(){
 
-  map<uint8_t,uint8_t> changers;
+  map<uint8_t,std::pair<uint8_t,size_t > > changers;
   
   for (size_t i=0;i<data.size()-2;i++){
     if ( (data[i].inp==data[i+2].inp) && (data[i].out!=data[i+2].out) ){
-      uint8_t netFlip=data[i].out^data[i+2].out;    
-      size_t idx=((data[i].out^data[i+1].out)&netFlip)?(i+1):(i+2);
-      map<uint8_t,uint8_t>::iterator it;
+      if ((data[i].inp^data[i+1].inp)&1) continue;
+
+      //uint8_t netFlip=data[i].out^data[i+2].out;    
+      //size_t idx=((data[i].out^data[i+1].out)&netFlip)?(i+1):(i+2);
+      size_t idx=i+1;
+      map<uint8_t,std::pair<uint8_t,size_t> >::iterator it;
       if ( (it=changers.find(data[idx].inp))!=changers.end()){
-        if (it->second!=data[idx].out){
+        if (it->second.first!=data[idx].out){
           cout<<"spurious clr"<<hex<<(int)data[idx].inp<<endl;
+          cout<<"First seen"<<hex<<endl;
+          for (size_t pi=it->second.second;pi<=it->second.second+2;++pi){
+            cout<<" "<<(int)data[pi].inp<<" "<<(int)data[pi].out<<endl;
+          }
+          cout<<endl;
+          cout<<"Now seen"<<endl;
+          for (size_t ci=i;ci<=i+2;++ci){
+            cout<<" "<<(int)data[ci].inp<<" "<<(int)data[ci].out<<endl;
+          }
+          cout<<endl;
         }
       }else{
-        changers[data[idx].inp]=data[idx].out;
+        changers[data[idx].inp]=make_pair(data[idx].out,i);
       }
     }
   }//for i
@@ -957,7 +971,7 @@ map<uint8_t,uint8_t> findReflipChangers(){
 
   cout<<"=state changer expression="<<endl;
   cout<<getVerilogExpression(sol,inpNames)<<endl;
-  return changers;
+  //return changers;
 }
 
 

@@ -1,8 +1,11 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <map>
+#include <sstream>
 #include "dataLoad.h"
 #include "maximcrc.h"
+
 using namespace std;
 
 
@@ -204,4 +207,135 @@ bool loadIoFile(std::vector<Data>& data,const char* name){
    
  }
  return false;
+}
+
+static constexpr int CHANNELS=16;
+static constexpr int HEX_PER_LINE=128;
+
+
+/*inline static bool  readChunk(ifstream& f,std::vector<std::vector<uint8_t>>& hexStream){
+  char semicolon;
+  int channel;
+  std::string line;
+  for (int ch=0;ch<CHANNELS;ch++){
+    if (!std:getline(f,line)) return false;
+    std::istringstream iss(line);
+    iss>>channel>>semicolon;
+    if (channel!=ch){
+      cerr<<"Unexpected channel"<<channel<<endl;
+      return false;
+    }
+    uint16_t v;
+    for (int j=0;j<HEX_PER_LINE;j++){
+      iss>>hex>>v;
+      hexStream[ch][j]=v;
+    }      
+  }
+  return true;
+}
+
+
+
+
+bool loadSigrokFile(std::vector<Data>& data,const char* name){
+  ifstream f(name);
+  std::string line;
+  for (size_t i=0;i<2;i++){
+  std:getline(infile,line); //throw away header
+  }
+
+  std::vector<std::vector<uint8_t>> hexStream(CHANNELS);
+  for (int i=0;i<CHANNELS;i++){
+    hexStream[i].resize(HEX_PER_LINE);
+  }
+  
+  uint16_t state;
+
+  readChunk(f,hexStream);
+  
+
+}
+
+*/
+
+bool loadVcdFile(std::vector<Data>& data,const char* name){
+  ifstream f(name);
+
+  std::map<char,uint8_t> chanId;
+  string cmd;
+  string line;
+  do{
+    getline(f,line);
+    std::istringstream iss(line);
+    iss>>cmd;
+    //    cout<<"CMD {"<<cmd<<"}"<<endl;
+    if (!iss) return false;
+
+    if (cmd=="$var"){
+      string wire;
+      int n;
+      char id;
+      iss>>wire>>n>>id;
+      uint16_t chan=chanId.size();
+      chanId[id]=chan;
+    }
+  }while (cmd!="$enddefinitions");
+  cout<<chanId.size()<<" channel definitions read"<<endl;
+  for (auto& it:chanId){
+    cout<<it.first<<":"<<(int)it.second<<endl;
+  }
+  
+  uint16_t state=0;
+  size_t prevT=0;
+  bool pushingReady=false;
+  while(getline(f,line)){
+    std::istringstream iss(line);
+    char sharp;
+    size_t t;
+    iss>>sharp>>t;    
+    uint16_t newstate=state;
+    //cout<<"line"<<line<<endl;
+    while(iss){
+      char val;
+      char chan;
+      iss>>val>>chan;
+      uint16_t mask=1<<chanId[chan];
+      if (val=='1'){
+        newstate|=mask;
+      }else if (val=='0'){
+        newstate&=~mask;
+      }else{
+        cerr<<"Unexpected value "<<val<<endl;
+        return false;
+      }
+    }
+    //cout<<hex<<"state"<<newstate<<endl;
+    if ((state^newstate)&0xFF){
+      if (pushingReady){
+        if (t-prevT<80){
+          cout<<"Warning: Input changed after "<<(t-prevT)<<"@ t="<<t<<endl;
+        }
+        if (t-prevT>150){
+          cout<<"Warning: Input changed after "<<(t-prevT)<<"@ t="<<t<<endl;
+        }
+        Data d;
+        d.inp=state&0xFF;
+        d.out=(state>>8)&0xFF;
+        d.edge=!data.size()?false: ((data[data.size()-1].inp^d.inp)&1);
+        data.push_back(d);
+      }else{
+        pushingReady=true;
+      }
+      prevT=t;
+    }
+    if ((state^newstate)&0xFF00){
+      if (t-prevT>2){
+        cout<<"Warning: Output changed after "<<(t-prevT)<<"@ t="<<t<<endl;
+      }
+    }
+    state=newstate;
+  }
+  
+
+  return true;
 }

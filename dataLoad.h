@@ -11,5 +11,6 @@ bool loadFlipFile(std::vector<std::vector<Data> >& data,const char* name);
 bool saveIoFile(const std::vector<Data>& data,const char* name);
 bool loadIoFile(std::vector<Data>& data,const char* name);
 
+bool loadVcdFile(std::vector<Data>& data,const char* name);
 
 #endif

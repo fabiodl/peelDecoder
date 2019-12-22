@@ -22,6 +22,11 @@ FEOBJS := flipExtractor.o dataLoad.o maximcrc.o
 flipExtractor: $(FEOBJS)
 	g++ $(FEOBJS) -o $@ $(CXXFLAGS)
 
+CVOBJS :=convVcd.o dataLoad.o maximcrc.o
+convVcd: $(CVOBJS)
+	g++ $(CVOBJS) -o $@ $(CXXFLAGS)
+
+
 all: checkPeel testInference scoreConfs trivialComb flipExtractor
 
 # pull in dependency info for *existing* .o files
@@ -45,6 +50,6 @@ all: checkPeel testInference scoreConfs trivialComb flipExtractor
 
 # remove compilation products
 clean:
-	rm -f checkPeel $(OBJS) $(TIOBJS) $(SCOBJS) $(TCOBJS) $(FEOBJS) *.d
+	rm -f checkPeel $(OBJS) $(TIOBJS) $(SCOBJS) $(TCOBJS) $(FEOBJS) $(CVOBJS) *.d
 
 
