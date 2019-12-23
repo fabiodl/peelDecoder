@@ -108,7 +108,7 @@ std::vector<uint8_t> findInfluences(State* data,size_t n_inputs){
 
         size_t laddr=(upperBits<<(i+1))|lowerBits;
         size_t haddr=laddr|(1<<i);
-        influences[i]|=data[laddr].v^data[haddr].v; 
+        influences[i]|=(data[laddr].v^data[haddr].v)&data[laddr].k&data[haddr].k; 
         /*std::cout<<"checking "<< bitset<4>(laddr) <<"(="<<std::hex<<(uint)data[laddr]<<std::dec<<")"
                  <<"vs"<<bitset<4>(haddr)<<"(="<<std::hex<<(uint)data[haddr]<<std::dec<<")"
                  <<"xor"<<std::hex<<(uint)(data[laddr]^data[haddr])<<" infl " <<(uint)influences[i]<<dec
@@ -471,15 +471,22 @@ void findTransitions(){
 struct F{
 
   std::vector<BoolState> f;
+
+  F(){}
   
   F(size_t nbits):
     f(1<<nbits)
   {    
-    for (BoolState& s:f){
+    reset();
+  }
+
+  void reset(){
+  for (BoolState& s:f){
       s.k=false;
     }
   }
 
+  
   bool check(size_t idx,bool val){
     //cout<<"checking"<<idx<<"size"<<f.size()<<endl;
     if (f[idx].k && (f[idx].v^val)){
@@ -1011,6 +1018,107 @@ void findReflipChangers(){
   */
 
 
+
+
+static inline bool isDiff(const State& a,const State& b){
+  //if (a.k&b.k){
+  //cout<<"something to check"<<endl;
+  //}
+  return (a.v^b.v)&a.k&b.k;
+}
+
+bool isResetCompatible(Func& f,uint8_t state){
+  for (size_t i=0;i<0xFFFF;i++){
+    if (isDiff(f.f[(0x100<<16)|i],f.f[(state<<16)|i])) return false;
+  }
+  return true;
+}
+
+
+std::vector<F> splitFunc(const Func& f){
+  std::vector<F> fs(8);
+  for (size_t b=0;b<8;b++){
+    uint8_t mask=1<<b;
+    fs[b].f.resize(f.f.size());
+    for (size_t i=0;i<f.f.size();i++){
+      fs[b].f[i].v=f.f[i].v&mask;
+      fs[b].f[i].k=f.f[i].k&mask;
+    }
+  }
+  return fs;
+}
+
+bool squashF(F& f,size_t mask,F& newf){
+  newf.f.resize(f.f.size());
+  for (size_t i=0;i<f.f.size();i++){
+    if (f.f[i].k)
+      if (!newf.check(i&mask,f.f[i].v)) return false;
+  }
+  return true;
+}
+
+
+void checkSR(){
+
+  uint8_t prevOut=data[0].out;
+  uint16_t state=0;
+  bool stateKnown=false;
+
+  Func f(25);
+  size_t checked=0;
+  for (size_t i=0;i<data.size();++i){
+    const Data& d=data[i];
+    if (d.inp&1){
+      state=d.out;
+      stateKnown=true;
+    }
+    if (d.inp&(1<<6)){
+      state=0x100;
+      stateKnown=true;
+    }
+    if (stateKnown){
+      uint32_t idx=(state<<16)|(prevOut<<8)|d.inp;
+      if (!f.check(idx,d.out)){
+        cout<<"non deterministic"<<endl;
+        return;
+      }else{
+        checked++;
+      }
+    }
+   
+    prevOut=d.out;
+  }
+  cout<<checked<<" deterministic"<<endl;
+
+  for (int i=0;i<0x100;i++){
+    if (!isResetCompatible(f,i)){
+      cout<<"state "<<hex<<i<<"is not reset compatible"<<endl;
+    }
+  }
+
+  std::vector<F> funcs=splitFunc(f);   
+  for (uint8_t o=0;o<8;++o){
+    size_t mask=0x1FFFFFF;
+    for (int b=23;b>=0;--b){
+      size_t newmask=mask&~(1<<b);
+      F newf;
+      if (squashF(funcs[o],newmask,newf)){
+        mask=newmask;
+        funcs[o]=newf;
+        //cout<<"no input "<<b<<" for output "<<(int)o<<endl;
+      }else{
+        cout<<"input "<<b<<" necessary for "<<(int)o<<endl;
+      }
+      
+    }
+
+  }
+
+  
+}
+
+
+
 int main(int argc,char** argv){
 
   for (uint8_t i=0;i<inpNames.size();++i){
@@ -1027,8 +1135,10 @@ int main(int argc,char** argv){
   
 
   loadIoFile(data,argv[1]);
+  checkSR();
+
   //findStateChanges();
-  findReflipChangers();
+  //findReflipChangers();
   //checkClr();
   //analysisO7();
   //o7dld();
