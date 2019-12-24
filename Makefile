@@ -50,6 +50,6 @@ all: checkPeel testInference scoreConfs trivialComb flipExtractor
 
 # remove compilation products
 clean:
-	rm -f checkPeel $(OBJS) $(TIOBJS) $(SCOBJS) $(TCOBJS) $(FEOBJS) $(CVOBJS) *.d
+	rm -f checkPeel $(OBJS) $(TIOBJS) $(SCOBJS) $(TCOBJS) $(FEOBJS) $(CVOBJS) *.d checkPeel testInference scoreConfs trivialComb flipExtractor convVcd
 
 

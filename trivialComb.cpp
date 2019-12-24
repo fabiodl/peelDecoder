@@ -4,8 +4,8 @@
 #include <set>
 #include <algorithm>
 
-std::vector<std::string> inpNames={"asel","~fdc","~rom","~ras2","~cas2","~cas0","wr","fres"};
-std::vector<std::string> outNames={"tr_dir","~tr_ce","ff_cp","~ff_oe","cdcas0","o6","o7","o8"};
+std::vector<std::string> inpNames={"asel","!fdc","!rom","!ras2","!cas2","!cas0","wr","fres"};
+std::vector<std::string> outNames={"tr_dir","!tr_ce","ff_cp","!ff_oe","cdcas0","o6","o7","o8"};
 std::vector<std::string> enames;
 
 std::map<std::string,uint8_t> inpIndex,outIndex;
