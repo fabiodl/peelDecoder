@@ -156,3 +156,21 @@ o7-f
 Net effect o7-f 
 =state changer expression=
 asel&~~fdc | asel&~~rom | ~~ras2 | ~cas2 | ~cas0 | wr
+==
+tr_dir=!rom&~!ras2&!cas2&~!cas0 | ~!fdc&~!ras2&~!cas2 | ~!fdc&~!ras2&~!cas0 | ~!ras2&~Do6 | ~!ras2&~Do8
+
+!tr_ce=~!ras2&!cas2&~!cas0&~Qtr_dir&Qff_cp&~D!tr_ce | ~!ras2&!cas2&~!cas0&~Qtr_dir&Qo7&~D!tr_ce | ~!ras2&!cas2&~!cas0&~Qff_cp&Qo7&~D!tr_ce | ~!ras2&~Qtr_dir&Qff_cp&~D!tr_ce&~Do6 | ~!ras2&~Qtr_dir&Qo7&~D!tr_ce&~Do6 | ~!ras2&~Qff_cp&Qo7&~D!tr_ce&~Do6 | !cas0&~Qff_cp&~Qo7&~D!tr_ce&~Do8 | !cas0&Qff_cp&Qo7&~D!tr_ce&~Do8 | ~!cas2&!cas0&~Qtr_dir&Qff_cp&Do8 | ~!cas2&!cas0&~Qtr_dir&Qo7&Do8 | ~!cas2&!cas0&~Qff_cp&Qo7&Do8 | ~!ras2&!cas2&~D!tr_ce&~Do8 | !cas0&Qtr_dir&~D!tr_ce&~Do8 | ~!cas2&!cas0&~Do6&Do8 | !cas0&~D!tr_ce&~Do6 | !cas2&!cas0&~Do8
+
+ff_cp=~Qtr_dir&~Qff_cp | Qtr_dir&Qff_cp | !cas2 | !cas0 | Qo7 | Do8
+
+!ff_oe=!cas2&~!cas0&~Qtr_dir&Qff_cp&~Do8 | !cas2&~!cas0&~Qtr_dir&Qo7&~Do8 | !cas2&~!cas0&~Qff_cp&Qo7&~Do8 | ~!cas2&~!cas0&~Qff_cp&~Qo7 | ~!cas2&~!cas0&Qff_cp&Qo7 | ~!cas0&~Qff_cp&~Qo7&Do8 | ~!cas0&Qff_cp&Qo7&Do8 | ~!cas2&~!cas0&Qtr_dir | ~Qtr_dir&Qff_cp&Do6 | ~Qtr_dir&Qo7&Do6 | ~Qff_cp&Qo7&Do6 | ~!cas2&~!cas0&Do8 | ~!cas0&Qtr_dir&Do8 | !cas2&Do6 | ~!cas0&Do6 | Do6&Do8 | !ras2 | D!tr_ce
+
+cdcas0=~!cas0
+
+o6=!ras2
+
+o7=~Qff_cp&~Qo7 | Qff_cp&Qo7 | Qtr_dir
+
+o8=~!ras2&!cas2&Do6 | !ras2&~!cas2 | !ras2&~Do6 | !ras2&Do8 | Do6&Do8
+
+o8=~ras2&cas2&Do6 | ras2&~cas2 | ras2&~Do6 | ras2&Do8 | Do6&Do8

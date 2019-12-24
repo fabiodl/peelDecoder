@@ -4,8 +4,8 @@
 #include <set>
 #include <algorithm>
 
-std::vector<std::string> inpNames={"asel","!fdc","!rom","!ras2","!cas2","!cas0","wr","fres"};
-std::vector<std::string> outNames={"tr_dir","!tr_ce","ff_cp","!ff_oe","cdcas0","o6","o7","o8"};
+std::vector<std::string> inpNames={"asel","fdc","rom","ras2","cas2","cas0","wr","fres"};
+std::vector<std::string> outNames={"tr_dir","tr_ce","ff_cp","ff_oe","cdcas0","o6","o7","o8"};
 std::vector<std::string> enames;
 
 std::map<std::string,uint8_t> inpIndex,outIndex;
@@ -684,9 +684,9 @@ void getExpression(F& f,std::vector<bool> selected,bool neg){
     for (size_t b=0;b<n;b++){
       if (i & (1<<b)){
         idx|=(1<<realIdx[b]);
-        buffer[b]='1';
+        buffer[n-1-b]='1';
       }else{
-        buffer[b]='0';
+        buffer[n-1-b]='0';
       }
     }   
     if (!f.f[idx].k){
@@ -1182,6 +1182,8 @@ bool directCheck(int bit,uint32_t mask){
   F f(25);
   size_t checked=0;
   uint32_t outMask=1<<bit;  
+
+  for (int p=0;p<2;p++){
   for (size_t i=1;i<data.size();++i){
     prevOut=data[i-1].out;
     const Data& d=data[i];
@@ -1210,6 +1212,7 @@ bool directCheck(int bit,uint32_t mask){
     
     
   }
+  }//for pass
   cout<<checked<<" deterministic"<<endl;
   return true;
 }
@@ -1232,6 +1235,7 @@ void findMask(int bit){
     if (mask&(1<<i)) cout<<enames[i]<<" ";
   }
   cout<<endl;
+  
   //verbose=true;
   //directCheck(bit,mask);
 }
@@ -1326,7 +1330,11 @@ void tryTable8(){
   }
   cout<<"OK"<<endl;
   uint8_t conf=0;
-  for(BoolState &s:f.f){    
+  cout<<"ras2 cas2 o6 o8"<<endl;
+  for(BoolState &s:f.f){
+    for (int b=0;b<4;b++){
+      cout<<bool(conf&(1<<b))<<" ";
+    }    
     cout<<s<<endl;
     conf++;
   }
@@ -1337,25 +1345,30 @@ void tryTable8(){
 bool verify(){
 
 
-  bool o8=data[0].out&(1<<7);
 
-  for (size_t i=0;i<data.size();i++){
+  bool o8=getO8(data[0].out);
+
+  for (size_t i=1;i<data.size();i++){
     const Data& d=data[i];
-    bool ras2=d.inp&(1<<3);
-    bool cas2=d.inp&(1<<4);
-    bool mo8=d.out&(1<<7);
+    const Data& prevd=data[i-1];
 
+    bool cas2=getCas2(d.inp);
+    bool ras2=getRas2(d.inp);
     
-    bool po8=ras2||(cas2&&o8);
-    o8=po8;
+    if (cas2){
+      if (ras2^getRas2(prevd.inp)){
+        o8=ras2;
+      }
+    }
     
-    if (po8!=mo8){
-      cerr<<"BAD PREDICTION"<<endl;
+    if (o8 && ! getO8(d.out)){
+      cerr<<"BAD PREDICTION @"<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<getO8(d.out)<<endl;
       return false;
     }
     
   }
-
+  cout<<"8 is ok"<<endl;
   return true;
 }
 
@@ -1382,10 +1395,10 @@ int main(int argc,char** argv){
 
   loadIoFile(data,argv[1]);
   
-  //checkSR();
-  tryTable8();
+  checkSR();
+  //tryTable8();
   //findMask(7);
-  //verify();
+  verify();
   //checkStay();
 
   //findStateChanges();
