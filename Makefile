@@ -14,7 +14,7 @@ SCOBJS := scoreConfs.o peel.o peelBinarySink.o infer.o
 scoreConfs: $(SCOBJS)
 	g++ $(SCOBJS) -o $@  $(CXXFLAGS)
 
-TCOBJS := dataLoad.o trivialComb.o maximcrc.o ../OpenQM/implicant.o ../OpenQM/qm.o
+TCOBJS := dataLoad.o trivialComb.o maximcrc.o ../OpenQM/implicant.o ../OpenQM/qm.o peel.o
 trivialComb: $(TCOBJS) 
 	g++ $(TCOBJS) -o $@  $(CXXFLAGS)
 

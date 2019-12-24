@@ -11,6 +11,45 @@ std::vector<std::string> enames;
 std::map<std::string,uint8_t> inpIndex,outIndex;
 
 
+static inline bool getAsel(uint8_t v){
+  return v&1;
+}
+
+static inline bool getRas2(uint8_t v){
+  return v&(1<<3);
+}
+
+static inline bool getCas2(uint8_t v){
+  return v&(1<<4);
+}
+
+static inline bool  getWr(uint8_t v){
+  return v&(1<<6);
+}
+
+
+
+
+static inline bool getO6(uint8_t v){
+  return v&(1<<5);
+}
+
+static inline bool getO8(uint8_t v){
+  return v&(1<<7);
+}
+
+std::string inpDesc(uint8_t inp){
+  std::string s;
+  for (int i=0;i<8;i++){
+    if (inp& (1<<i)){
+      s+=inpNames[i]+" ";
+    }
+  }
+  return s;
+}
+
+
+
 using namespace std;
 static constexpr uint8_t DEPTH=1;
 
@@ -631,6 +670,7 @@ void getExpression(F& f,std::vector<bool> selected,bool neg){
     if (selected[i]){
       realIdx.push_back(i);
       realNames.push_back(enames[i]);
+      //cout<<"using name"<<realNames[realNames.size()-1]<<endl;
     }
   }
 
@@ -1066,9 +1106,10 @@ void checkSR(){
 
   Func f(25);
   size_t checked=0;
-  for (size_t i=0;i<data.size();++i){
+  for (size_t i=1;i<data.size();++i){
+    prevOut=data[i-1].out;
     const Data& d=data[i];
-    if (d.inp&1){
+    if (d.edge){
       state=d.out;
       stateKnown=true;
     }
@@ -1077,7 +1118,8 @@ void checkSR(){
       stateKnown=true;
     }
     if (stateKnown){
-      uint32_t idx=(state<<16)|(prevOut<<8)|d.inp;
+      uint8_t stableOut=prevOut;
+      uint32_t idx=(state==0x100?(1<<24):0) |(stableOut<<16)|((state&0xFF)<<8)|d.inp;
       if (!f.check(idx,d.out)){
         cout<<"non deterministic"<<endl;
         return;
@@ -1086,7 +1128,7 @@ void checkSR(){
       }
     }
    
-    prevOut=d.out;
+    
   }
   cout<<checked<<" deterministic"<<endl;
 
@@ -1099,7 +1141,7 @@ void checkSR(){
   std::vector<F> funcs=splitFunc(f);   
   for (uint8_t o=0;o<8;++o){
     size_t mask=0x1FFFFFF;
-    for (int b=23;b>=0;--b){
+    for (int b=24;b>=0;--b){
       size_t newmask=mask&~(1<<b);
       F newf;
       if (squashF(funcs[o],newmask,newf)){
@@ -1107,16 +1149,215 @@ void checkSR(){
         funcs[o]=newf;
         //cout<<"no input "<<b<<" for output "<<(int)o<<endl;
       }else{
-        cout<<"input "<<b<<" necessary for "<<(int)o<<endl;
+        //cout<<"input "<<enames[b]<<" necessary for "<<(int)o<<endl;
+      }
+      
+    }
+    std::vector<bool> selected;
+    for (int b=0;b<=24;b++){
+      selected.push_back(mask&(1<<b));
+    }
+    cout<<outNames[o]<<"=";
+    getExpression(funcs[o],selected,false);
+    cout<<endl;
+    
+  }
+
+ 
+
+  
+  
+}
+
+
+
+bool verbose=false;
+
+bool directCheck(int bit,uint32_t mask){
+
+  uint8_t prevOut;
+  uint16_t state=0;
+  bool stateKnown=false;
+
+  F f(25);
+  size_t checked=0;
+  uint32_t outMask=1<<bit;  
+  for (size_t i=1;i<data.size();++i){
+    prevOut=data[i-1].out;
+    const Data& d=data[i];
+    if (d.edge){
+      state=d.out;
+      stateKnown=true;
+    }
+    if (d.inp&(1<<6)){
+      state=0x100;
+      stateKnown=true;
+    }
+    if (stateKnown){
+      uint8_t stableOut=prevOut;
+      uint32_t idx=(state==0x100?(1<<24):0) |(stableOut<<16)|((state&0xFF)<<8)|d.inp;
+      idx=idx&mask;
+      if (verbose){
+        cout<<"idx"<<idx<<endl;
+      }
+      if (!f.check(idx,d.out&outMask)){
+        cout<<"non deterministic"<<endl;
+        return false;
+      }else{
+        checked++;
+      }
+    }
+    
+    
+  }
+  cout<<checked<<" deterministic"<<endl;
+  return true;
+}
+
+
+
+void findMask(int bit){
+  uint32_t mask=0x1FFFFFF;
+  if (!directCheck(bit,mask)){
+    cout<<"NON DETERMINISTIC"<<endl;
+  }
+  for (int i=24;i>=0;i--){
+    uint32_t newmask=mask&(~(1<<i));    
+    if (directCheck(bit,newmask)){
+      mask=newmask;
+    }
+  }
+  cout<<"MASK is"<<hex<<mask<<endl;
+  for (int i=0;i<24;i++){
+    if (mask&(1<<i)) cout<<enames[i]<<" ";
+  }
+  cout<<endl;
+  //verbose=true;
+  //directCheck(bit,mask);
+}
+
+
+void checkStay(){
+  for (int o=0;o<8;o++){
+    cout<<"Output "<<outNames[o]<<endl;
+    set<uint32_t> h,s,c;
+    uint16_t state=0;
+    bool stateKnown=false;
+    for (size_t i=1;i<data.size();++i){
+      //uint8_t prevInp=data[i-1].inp;
+      uint8_t prevOut=data[i-1].out;
+      uint8_t inp=data[i].inp;
+      uint8_t out=data[i].out;
+
+      if (data[i].edge){
+        state=out;
+        stateKnown=true;
+      }
+      if (inp&(1<<6)){
+        state=0x100;
+        stateKnown=true;
+      }
+
+      if (stateKnown){      
+        uint8_t mask=1<<o;
+        uint32_t es=(state<<8)|inp;
+        if ((out^prevOut)&mask){
+          if (out&mask){
+            s.insert(es);
+          }else{
+            c.insert(es);
+          }        
+        }else{
+          h.insert(es);
+        }
       }
       
     }
 
+    for (size_t i=0;i<0xFFFF;i++){
+      cout<<hex<<(int)i<<" ";
+      if (c.find(i)!=c.end()){
+        cout<<"c";
+      }
+      if (s.find(i)!=s.end()){
+        cout<<"s";
+      }
+      if (h.find(i)!=h.end()){
+        cout<<"h";
+      }
+      cout<<endl;
+    }
+    
   }
-
   
+
 }
 
+
+
+
+//maybe cas2 latched on the neg edge of ras2?
+void tryTable8(){
+  F f(4);
+  //uint16_t state=0x00;
+  uint8_t stateKnown=false;
+  for (size_t i=1;i<data.size();++i){
+    const Data& d=data[i];    
+    uint8_t prevOut=data[i-1].out;
+    if (d.edge){
+      //state=d.out;
+        stateKnown=true;
+        //cout<<"edge"<<endl;
+      }
+    if (getWr(d.inp)){
+      //state=0x100;
+        stateKnown=true;
+    }
+
+    //if (stateKnown){
+    //cout<<hex<<"inp="<<inpDesc(d.inp)<<" state="<<(int)state<<endl;
+    size_t idx=  (getO8(prevOut)<<3) | (getO6(prevOut)<<2) |(getCas2(d.inp)<<1) | getRas2(d.inp)  ;
+    //cout<<"idx"<<idx<<"val"<<getO8(d.out)<<endl;
+    if (!f.check(idx,getO8(d.out))){
+        cout<<"Non deterministic"<<endl;
+        return;
+    }
+    //}
+  }
+  cout<<"OK"<<endl;
+  uint8_t conf=0;
+  for(BoolState &s:f.f){    
+    cout<<s<<endl;
+    conf++;
+  }
+}
+
+
+
+bool verify(){
+
+
+  bool o8=data[0].out&(1<<7);
+
+  for (size_t i=0;i<data.size();i++){
+    const Data& d=data[i];
+    bool ras2=d.inp&(1<<3);
+    bool cas2=d.inp&(1<<4);
+    bool mo8=d.out&(1<<7);
+
+    
+    bool po8=ras2||(cas2&&o8);
+    o8=po8;
+    
+    if (po8!=mo8){
+      cerr<<"BAD PREDICTION"<<endl;
+      return false;
+    }
+    
+  }
+
+  return true;
+}
 
 
 int main(int argc,char** argv){
@@ -1128,14 +1369,24 @@ int main(int argc,char** argv){
 
   for (uint8_t i=0;i<outNames.size();++i){
     outIndex[outNames[i]]=i;
-    enames.push_back("L"+outNames[i]);
+    enames.push_back("Q"+outNames[i]);
   }
 
 
-  
+  for (uint8_t i=0;i<outNames.size();++i){
+    enames.push_back("D"+outNames[i]);
+  }
+
+  enames.push_back("@");
+
 
   loadIoFile(data,argv[1]);
-  checkSR();
+  
+  //checkSR();
+  tryTable8();
+  //findMask(7);
+  //verify();
+  //checkStay();
 
   //findStateChanges();
   //findReflipChangers();
