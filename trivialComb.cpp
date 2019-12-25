@@ -48,6 +48,16 @@ std::string inpDesc(uint8_t inp){
   return s;
 }
 
+std::string outDesc(uint8_t out){
+  std::string s;
+  for (int i=0;i<8;i++){
+    if (out& (1<<i)){
+      s+=outNames[i]+" ";
+    }
+  }
+  return s;
+}
+
 
 
 using namespace std;
@@ -1304,35 +1314,42 @@ void checkStay(){
 void tryTable8(){
   F f(4);
   //uint16_t state=0x00;
-  uint8_t stateKnown=false;
+  //uint8_t stateKnown=false;
+  for(uint8_t p=0;p<2;p++){
   for (size_t i=1;i<data.size();++i){
     const Data& d=data[i];    
     uint8_t prevOut=data[i-1].out;
-    if (d.edge){
-      //state=d.out;
-        stateKnown=true;
-        //cout<<"edge"<<endl;
+    /*    if (d.edge){
+      state=d.out;
+      stateKnown=true;
+      cout<<"edge"<<endl;
       }
     if (getWr(d.inp)){
-      //state=0x100;
-        stateKnown=true;
+      state=0x100;
+      stateKnown=true;
     }
-
+    */
     //if (stateKnown){
     //cout<<hex<<"inp="<<inpDesc(d.inp)<<" state="<<(int)state<<endl;
     size_t idx=  (getO8(prevOut)<<3) | (getO6(prevOut)<<2) |(getCas2(d.inp)<<1) | getRas2(d.inp)  ;
-    //cout<<"idx"<<idx<<"val"<<getO8(d.out)<<endl;
+    
+    if (false){
+      cout<<"o8 to ras2 "<<getO8(prevOut)<<" "<<getO6(prevOut)<<" "<<getCas2(d.inp)<<" "<<getRas2(d.inp)<<endl;
+      cout<<"idx"<<idx<<"val"<<getO8(d.out)<<endl;
+    }
     if (!f.check(idx,getO8(d.out))){
         cout<<"Non deterministic"<<endl;
         return;
     }
     //}
   }
+  }
   cout<<"OK"<<endl;
   uint8_t conf=0;
   cout<<"ras2 cas2 o6 o8"<<endl;
   for(BoolState &s:f.f){
     for (int b=0;b<4;b++){
+      //if (conf&2)
       cout<<bool(conf&(1<<b))<<" ";
     }    
     cout<<s<<endl;
@@ -1356,14 +1373,14 @@ bool verify(){
     bool ras2=getRas2(d.inp);
     
     if (cas2){
-      if (ras2^getRas2(prevd.inp)){
+      if (ras2||(!ras2&&getRas2(prevd.inp))){
         o8=ras2;
       }
     }
     
-    if (o8 && ! getO8(d.out)){
+    if (o8 != getO8(d.out)){
       cerr<<"BAD PREDICTION @"<<i<<endl;
-      cout<<inpDesc(d.inp)<<" "<<getO8(d.out)<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getO8(d.out)<<endl;
       return false;
     }
     
@@ -1395,8 +1412,8 @@ int main(int argc,char** argv){
 
   loadIoFile(data,argv[1]);
   
-  checkSR();
-  //tryTable8();
+  //checkSR();
+  tryTable8();
   //findMask(7);
   verify();
   //checkStay();
