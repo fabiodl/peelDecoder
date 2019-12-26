@@ -44,9 +44,22 @@ static inline bool getTrdir(uint8_t v){
   return v&1;
 }
 
+
+static inline bool getTrce(uint8_t v){
+  return v&(1<<1);
+}
+
+
+
 static inline bool getFfcp(uint8_t v){
   return v&(1<<2);
 }
+
+static inline bool getFfoe(uint8_t v){
+  return v&(1<<3);
+}
+
+
 
 static inline bool getO6(uint8_t v){
   return v&(1<<5);
@@ -299,6 +312,78 @@ void findForcers(){
         bool can1=f[i][ih][1]&omask;
         if (can0 ^ can1){         
           cout<<inpNames[i]<<"-"<<valName[ih]<<"->"<<valName[can1]<<" ";
+        }        
+        
+      }//for jh     
+    }//for i
+    cout<<endl;
+  }//for o
+
+  
+}
+
+
+
+
+void findOutForcers(){
+  uint8_t f[8][2][2];
+
+  for (int i=0;i<8;i++){
+    for (int ih=0;ih<2;ih++){
+      for (int oh=0;oh<2;oh++){
+        f[i][ih][oh]=0;
+      }
+    }
+  }
+
+  for (const Data& d:data){    
+    for (int i=0;i<8;i++){
+      uint8_t mask=1<<i;
+      uint8_t ih=(d.out&mask)?1:0;
+      f[i][ih][0]|=~d.out;
+      f[i][ih][1]|=d.out;     
+
+    }//for i
+  }//for d
+
+  std::cout<<"=Output levels to output levels="<<endl;
+  
+  for (uint8_t i=0;i<8;i++){
+    cout<<outNames[i]<<" ";
+
+    for (uint8_t o=0;o<8;o++){
+      uint8_t omask=1<<o;
+      if (i==o) continue;
+
+      for (uint8_t ih=0;ih<2;ih++){
+        bool can0=f[i][ih][0]&omask;
+        bool can1=f[i][ih][1]&omask;
+        if (can0 ^ can1){
+          cout<<valName[ih]<<"->"<<outNames[o]<<"-"<<valName[can1]<<" ";
+        }        
+        
+      }//for jh     
+    }//for o
+    cout<<endl;
+  }//for i
+
+
+  cout<<"=Forcers for each output="<<endl;
+
+
+  for (uint8_t o=0;o<8;o++){
+    uint8_t omask=1<<o;
+    cout<<outNames[o]<<" ";
+
+    for (uint8_t i=0;i<8;i++){
+
+      if (i==o) continue;
+      
+      for (uint8_t ih=0;ih<2;ih++){
+        bool can0=f[i][ih][0]&omask;
+        bool can1=f[i][ih][1]&omask;
+        if (can0 ^ can1){         
+          cout<<outNames[i]<<"-"<<valName[ih]<<"->"<<valName[can1]<<" ";
         }        
         
       }//for jh     
@@ -696,6 +781,43 @@ std::vector<bool> findSimplifycation(F& f,uint8_t outmask){
   return vmask;
 }
   
+
+
+
+
+void getTable(F& f,std::vector<bool> selected,bool neg){
+  
+  std::vector<int> realIdx;
+  std::vector<string> realNames;
+  for (size_t i=0;i<selected.size();++i){
+    if (selected[i]){
+      realIdx.push_back(i);
+      realNames.push_back(enames[i]);
+      //cout<<"using name"<<realNames[realNames.size()-1]<<endl;
+    }
+  }
+
+  size_t n=realIdx.size();
+
+
+  vector<char> buffer(n+1);
+  buffer[n]=0;
+  for (int i=0;i<(1<<n);i++){
+    int idx=0;   
+    for (size_t b=0;b<n;b++){
+      if (i & (1<<b)){
+        idx|=(1<<realIdx[b]);
+        buffer[n-1-b]='1';
+      }else{
+        buffer[n-1-b]='0';
+      }
+    }   
+    if (f.f[idx].k){
+      cout<<buffer.data()<<" "<<(f.f[idx].v ^ neg)<<endl;
+    }    
+  }
+};
+
 
 
 
@@ -1440,6 +1562,7 @@ bool findLatched(int bit,uint32_t mask,F& f){
 
 
 
+
 bool findLatched(int bit){
 
   uint32_t mask=0x1FFFFFF;
@@ -1485,9 +1608,133 @@ bool findLatched(int bit){
 
 
 
+
+
+
+bool findCombinatorial(int bit,uint32_t mask,F& f){
+
+  uint16_t state=0;
+  bool stateKnown=false;
+  f.reset();
+  
+  for (size_t i=1;i<data.size();++i){
+    const Data& d=data[i];
+
+
+    if (d.edge){
+        state=d.out^OUTNEG;
+        stateKnown=true;
+      }
+        
+
+    if (getWr(d.inp)){
+      state=0x100;
+      stateKnown=true;
+    }
+    
+
+    if (stateKnown){
+      uint32_t idx=(state==0x100?(1<<24):0) |(d.out<<16)|((state&0xFF)<<8)|d.inp;
+      idx&=mask;
+      bool val=d.out&(1<<bit);
+      if (!f.check(idx,val)){
+        cout<<"non deterministic"<<endl;
+        return false;
+      }else{
+        //checked++;
+      }
+    }
+    
+  }
+    
+  return true;
+}
+
+
+
+
+bool findCombinatorial(int bit){
+
+  uint32_t mask=0x1FFFFFF;
+  mask&=~(1<<(bit+16));
+  if (bit==1){
+    mask&=~(1<<(3+16));
+    mask&=~(1<<(3+8));
+    mask&=~(1<<(1+8));
+  }
+
+  F f(25);
+  if (!findCombinatorial(bit,mask,f)){
+    cout<<"NON DETERMINISTIC"<<endl;
+    return false;
+  }
+
+  std::vector<size_t> tryRemoving;
+
+  for (int i=8;i<16;i++){
+    tryRemoving.push_back(i);
+  }
+
+  for (int i=0;i<8;i++){
+    tryRemoving.push_back(i);
+  }
+
+  for (int i=16;i<=24;i++){
+    tryRemoving.push_back(i);
+  }
+
+
+  
+  for (auto rem:tryRemoving){
+    //if (i>=16 && i<24) continue;
+    uint32_t newmask=mask&(~(1<<rem));    
+    if (findCombinatorial(bit,newmask,f)){
+      mask=newmask;
+    }
+  }
+
+
+  /*}for (int i=23;i>=16;i--){
+    uint32_t newmask=mask&(~(1<<i));    
+    if (findLatched(bit,newmask,f)){
+      mask=newmask;
+    }
+    }*/
+
+  
+  cout<<"MASK is"<<hex<<mask<<endl;
+  for (int i=0;i<=24;i++){
+    if (mask&(1<<i)) cout<<enames[i]<<" ";
+  }
+  cout<<endl;
+
+
+  std::vector<bool> selected;
+  for (int b=0;b<=24;b++){
+    selected.push_back(mask&(1<<b));
+  }
+
+
+  getTable(f,selected,false);
+
+  
+  cout<<outNames[bit]<<"=";
+  getExpression(f,selected,false);
+  cout<<endl;
+
+  cout<<"!"<<outNames[bit]<<"=";
+  getExpression(f,selected,true);
+  cout<<endl;
+  
+  return true;
+}
+
+
+
+
 bool verify(){
 
-  bool ff_cp,tr_dir;
+  bool ff_cp,tr_dir,tr_ce,ff_oe;
   bool o7=getO7(data[0].out);
   bool o8=getO8(data[0].out);
 
@@ -1518,7 +1765,6 @@ bool verify(){
       }
     }
 
-    tr_dir=!cas0 && (!fdc || !rom ||   o8 ||  !cas2 ); 
 
     
     if (d.edge){
@@ -1543,8 +1789,23 @@ bool verify(){
       }
     }
 
+    tr_dir=!cas0 && (!fdc || !rom || !o8 ) ;     
+    tr_ce=getTrce(d.out); //!cas2 && tr_dir;
+   
+    //ff_cp = cas2 || cas0 || o7 || o8;        
+    ff_oe=!tr_ce;
 
-    ff_cp = cas2 || cas0 || o7 || o8;
+    ff_cp=ff_oe|o7;
+    
+    //ff_cp=Dff_oe | Do7 ?!
+
+    if (ff_oe!=getFfoe(d.out)){
+      cerr<<"BAD ff_oe PREDICTION @"<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"D")<<"=>"<<getTrdir(d.out)<<endl;
+      return false;
+    }
+
+    
 
     if (stateKnown && tr_dir!=getTrdir(d.out)){
       cerr<<"BAD tr_dir PREDICTION @"<<i<<endl;
@@ -1576,6 +1837,7 @@ bool verify(){
     
     
   }
+  cout<<"tr_dir is ok"<<endl;
   cout<<"ff_cp is ok"<<endl;
   cout<<"7 is ok"<<endl;
   cout<<"8 is ok"<<endl;
@@ -1609,9 +1871,13 @@ int main(int argc,char** argv){
   //tryTable8();
   //findLatched(6);
   //findMask(7);
+  //findCombinatorial(2);
   verify();
   //checkStay();
 
+  //findOutForcers();
+  
+  
   //findStateChanges();
   //findReflipChangers();
   //checkClr();

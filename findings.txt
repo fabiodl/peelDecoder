@@ -176,3 +176,21 @@ o8=cas2&Do6&~Do8 | ras2&cas2 | ras2&Do8 | ~cas2&Do8 | ~Do6&Do8
 
 =====
 !o7=fdc&rom&cas2&cas0&Qo7 | ~ras2&cas2&cas0&~wr | fdc&rom&ras2&Qo7 | ~ras2&cas2&cas0&Qo7 | ~ras2&cas2&cas0&~@
+=Output levels to output levels=
+tr_dir 0->tr_ce-0 0->ff_cp-1 0->ff_oe-1 1->cdcas0-1 
+tr_ce 1->tr_dir-1 0->ff_cp-1 0->ff_oe-1 1->ff_oe-0 1->cdcas0-1 1->o8-0 
+ff_cp 0->tr_dir-1 0->tr_ce-1 0->ff_oe-0 0->cdcas0-1 0->o7-0 0->o8-0 
+ff_oe 0->tr_dir-1 0->tr_ce-1 1->tr_ce-0 1->ff_cp-1 0->cdcas0-1 0->o8-0 
+cdcas0 0->tr_dir-0 0->tr_ce-0 0->ff_cp-1 0->ff_oe-1 
+o6 
+o7 1->ff_cp-1 
+o8 1->tr_ce-0 1->ff_cp-1 1->ff_oe-1 
+=Forcers for each output=
+tr_dir tr_ce-1->1 ff_cp-0->1 ff_oe-0->1 cdcas0-0->0 
+tr_ce tr_dir-0->0 ff_cp-0->1 ff_oe-0->1 ff_oe-1->0 cdcas0-0->0 o8-1->0 
+ff_cp tr_dir-0->1 tr_ce-0->1 ff_oe-1->1 cdcas0-0->1 o7-1->1 o8-1->1 
+ff_oe tr_dir-0->1 tr_ce-0->1 tr_ce-1->0 ff_cp-0->0 cdcas0-0->1 o8-1->1 
+cdcas0 tr_dir-1->1 tr_ce-1->1 ff_cp-0->1 ff_oe-0->1 
+o6 
+o7 ff_cp-0->0 
+o8 tr_ce-1->0 ff_cp-0->0 ff_oe-0->0
