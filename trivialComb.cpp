@@ -1198,6 +1198,11 @@ void checkSR(){
     cout<<outNames[o]<<"=";
     getExpression(funcs[o],selected,false);
     cout<<endl;
+
+    cout<<"!"<<outNames[o]<<"=";
+    getExpression(funcs[o],selected,true);
+    cout<<endl;
+
     
   }
 
@@ -1482,7 +1487,7 @@ bool findLatched(int bit){
 
 bool verify(){
 
-  bool ff_cp;
+  bool ff_cp,tr_dir;
   bool o7=getO7(data[0].out);
   bool o8=getO8(data[0].out);
 
@@ -1513,6 +1518,9 @@ bool verify(){
       }
     }
 
+    tr_dir=!cas0 && (!fdc || !rom ||   o8 ||  !cas2 ); 
+
+    
     if (d.edge){
       bool frcc=fdc&&rom&&cas2&&cas0;
       bool frr=fdc&&rom&&ras2;
@@ -1538,6 +1546,13 @@ bool verify(){
 
     ff_cp = cas2 || cas0 || o7 || o8;
 
+    if (stateKnown && tr_dir!=getTrdir(d.out)){
+      cerr<<"BAD tr_dir PREDICTION @"<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"D")<<"=>"<<getTrdir(d.out)<<endl;
+      return false;
+    }
+
+    
     
     if (stateKnown && o7 != getO7(d.out)){
       cerr<<"BAD 7 PREDICTION @"<<i<<endl;
