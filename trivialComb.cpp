@@ -15,6 +15,14 @@ static inline bool getAsel(uint8_t v){
   return v&1;
 }
 
+static inline bool getFdc(uint8_t v){
+  return v&(1<<1);
+}
+
+static inline bool getRom(uint8_t v){
+  return v&(1<<2);
+}
+
 static inline bool getRas2(uint8_t v){
   return v&(1<<3);
 }
@@ -23,15 +31,29 @@ static inline bool getCas2(uint8_t v){
   return v&(1<<4);
 }
 
+static inline bool getCas0(uint8_t v){
+  return v&(1<<5);
+}
+
 static inline bool  getWr(uint8_t v){
   return v&(1<<6);
 }
 
 
+static inline bool getTrdir(uint8_t v){
+  return v&1;
+}
 
+static inline bool getFfcp(uint8_t v){
+  return v&(1<<2);
+}
 
 static inline bool getO6(uint8_t v){
   return v&(1<<5);
+}
+
+static inline bool getO7(uint8_t v){
+  return v&(1<<6);
 }
 
 static inline bool getO8(uint8_t v){
@@ -48,11 +70,11 @@ std::string inpDesc(uint8_t inp){
   return s;
 }
 
-std::string outDesc(uint8_t out){
+std::string outDesc(uint8_t out,const std::string& prefix=""){
   std::string s;
   for (int i=0;i<8;i++){
     if (out& (1<<i)){
-      s+=outNames[i]+" ";
+      s+=prefix+outNames[i]+" ";
     }
   }
   return s;
@@ -1079,7 +1101,8 @@ static inline bool isDiff(const State& a,const State& b){
 
 bool isResetCompatible(Func& f,uint8_t state){
   for (size_t i=0;i<0xFFFF;i++){
-    if (isDiff(f.f[(0x100<<16)|i],f.f[(state<<16)|i])) return false;
+    size_t idx=(i&0xFF)| (((i>>8)&0xFF)<<16);
+    if (isDiff(f.f[(1<<24)|idx],f.f[(state<<8)|idx])) return false;
   }
   return true;
 }
@@ -1144,7 +1167,7 @@ void checkSR(){
 
   for (int i=0;i<0x100;i++){
     if (!isResetCompatible(f,i)){
-      cout<<"state "<<hex<<i<<"is not reset compatible"<<endl;
+      cout<<"state "<<hex<<i<<" is not reset compatible"<<endl;
     }
   }
 
@@ -1359,32 +1382,174 @@ void tryTable8(){
 
 
 
+bool findLatched(int bit,uint32_t mask,F& f){
+
+  uint16_t state=0;
+  bool stateKnown=false;
+  f.reset();
+  
+  for (size_t i=1;i<data.size();++i){
+    const Data& d=data[i];
+    const Data& prevd=data[i-1];
+
+    if (stateKnown&&d.edge){
+      uint32_t idx=(state==0x100?(1<<24):0) |(prevd.out<<16)|((state&0xFF)<<8)|d.inp;
+      idx&=mask;
+      bool val=d.out&(1<<bit);
+      if (!f.check(idx,val)){
+        cout<<"non deterministic"<<endl;
+        return false;
+      }else{
+        //checked++;
+      }
+    }
+
+
+    
+     if (d.edge){
+        state=d.out;
+        stateKnown=true;
+      }
+      if (d.inp&(1<<6)){
+        state=0x100;
+        stateKnown=true;
+      }
+
+
+
+    
+  }
+    
+
+  return true;
+  
+}
+
+
+
+bool findLatched(int bit){
+
+  uint32_t mask=0x1FFFFFF;
+  F f(25);
+  if (!findLatched(bit,mask,f)){
+    cout<<"NON DETERMINISTIC"<<endl;
+    return false;
+  }
+  for (int i=24;i>=0;i--){
+    //if (i>=16 && i<24) continue;
+    uint32_t newmask=mask&(~(1<<i));    
+    if (findLatched(bit,newmask,f)){
+      mask=newmask;
+    }
+  }
+
+
+  /*}for (int i=23;i>=16;i--){
+    uint32_t newmask=mask&(~(1<<i));    
+    if (findLatched(bit,newmask,f)){
+      mask=newmask;
+    }
+    }*/
+
+  
+  cout<<"MASK is"<<hex<<mask<<endl;
+  for (int i=0;i<24;i++){
+    if (mask&(1<<i)) cout<<enames[i]<<" ";
+  }
+  cout<<endl;
+
+
+  std::vector<bool> selected;
+  for (int b=0;b<=24;b++){
+    selected.push_back(mask&(1<<b));
+  }
+  cout<<"!"<<outNames[bit]<<"=";
+  getExpression(f,selected,true);
+  cout<<endl;
+  
+  return true;
+}
+
+
+
 bool verify(){
 
 
-
+  bool o7=getO7(data[0].out);
   bool o8=getO8(data[0].out);
 
+
+
+  bool stateKnown=false;
+  uint8_t state=0;
+  
   for (size_t i=1;i<data.size();i++){
     const Data& d=data[i];
     const Data& prevd=data[i-1];
 
+    bool fdc=getFdc(d.inp);
     bool cas2=getCas2(d.inp);
     bool ras2=getRas2(d.inp);
+    bool cas0=getCas0(d.inp);
+    bool rom=getRom(d.inp);
+
+    if (getWr(d.inp)){
+      state=0;
+    }
+
+
     
     if (cas2){
       if (ras2||(!ras2&&getRas2(prevd.inp))){
         o8=ras2;
       }
     }
+
+    if (d.edge){
+      bool frcc=fdc&&rom&&cas2&&cas0;
+      bool frr=fdc&&rom&&ras2;
+      bool nrcc=!ras2&&cas2&&cas0;
+      o7=!(
+           (getTrdir(state) && ! getFfcp(state) && (frcc||frr) )||
+           (getTrdir(state) && !  getO7(state)   && (frcc||frr) )||
+           (getFfcp(state)  && !  getO7(state)   && (frcc||frr) )||
+           nrcc
+           );
+      stateKnown=true;
+      state=d.out;
+    }
+
+    if (getWr(d.inp)){
+      state=0;
+      o7=true;
+      stateKnown=true;
+      if (!getO7(d.out)){
+        cout<<"reset not working!"<<endl;
+      }
+    }
+
+
+
+
+    
+    if (stateKnown && o7 != getO7(d.out)){
+      cerr<<"BAD 7 PREDICTION @"<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"Q")<<"=>"<<getO8(d.out)<<endl;
+      return false;
+    }
+
+    
     
     if (o8 != getO8(d.out)){
-      cerr<<"BAD PREDICTION @"<<i<<endl;
+      cerr<<"BAD 8 PREDICTION @"<<i<<endl;
       cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getO8(d.out)<<endl;
       return false;
     }
+
+
     
   }
+  cout<<"7 is ok"<<endl;
   cout<<"8 is ok"<<endl;
   return true;
 }
@@ -1413,7 +1578,8 @@ int main(int argc,char** argv){
   loadIoFile(data,argv[1]);
   
   //checkSR();
-  tryTable8();
+  //tryTable8();
+  //findLatched(6);
   //findMask(7);
   verify();
   //checkStay();
