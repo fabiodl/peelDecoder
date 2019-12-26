@@ -60,6 +60,11 @@ static inline bool getO8(uint8_t v){
   return v&(1<<7);
 }
 
+
+static const uint8_t OUTNEG=1<<6;
+
+
+
 std::string inpDesc(uint8_t inp){
   std::string s;
   for (int i=0;i<8;i++){
@@ -1143,7 +1148,7 @@ void checkSR(){
     prevOut=data[i-1].out;
     const Data& d=data[i];
     if (d.edge){
-      state=d.out;
+      state=d.out^OUTNEG;
       stateKnown=true;
     }
     if (d.inp&(1<<6)){
@@ -1174,7 +1179,7 @@ void checkSR(){
   std::vector<F> funcs=splitFunc(f);   
   for (uint8_t o=0;o<8;++o){
     size_t mask=0x1FFFFFF;
-    for (int b=24;b>=0;--b){
+    for (int b=23;b>=0;--b){
       size_t newmask=mask&~(1<<b);
       F newf;
       if (squashF(funcs[o],newmask,newf)){
@@ -1221,7 +1226,7 @@ bool directCheck(int bit,uint32_t mask){
     prevOut=data[i-1].out;
     const Data& d=data[i];
     if (d.edge){
-      state=d.out;
+      state=d.out^OUTNEG;
       stateKnown=true;
     }
     if (d.inp&(1<<6)){
@@ -1287,7 +1292,7 @@ void checkStay(){
       uint8_t out=data[i].out;
 
       if (data[i].edge){
-        state=out;
+        state=out^OUTNEG;
         stateKnown=true;
       }
       if (inp&(1<<6)){
@@ -1392,6 +1397,12 @@ bool findLatched(int bit,uint32_t mask,F& f){
     const Data& d=data[i];
     const Data& prevd=data[i-1];
 
+
+    if (getWr(d.inp)){
+      state=0x100;
+      stateKnown=true;
+    }
+    
     if (stateKnown&&d.edge){
       uint32_t idx=(state==0x100?(1<<24):0) |(prevd.out<<16)|((state&0xFF)<<8)|d.inp;
       idx&=mask;
@@ -1407,13 +1418,10 @@ bool findLatched(int bit,uint32_t mask,F& f){
 
     
      if (d.edge){
-        state=d.out;
+        state=d.out^OUTNEG;
         stateKnown=true;
       }
-      if (d.inp&(1<<6)){
-        state=0x100;
-        stateKnown=true;
-      }
+     
 
 
 
@@ -1435,7 +1443,7 @@ bool findLatched(int bit){
     cout<<"NON DETERMINISTIC"<<endl;
     return false;
   }
-  for (int i=24;i>=0;i--){
+  for (int i=23;i>=0;i--){
     //if (i>=16 && i<24) continue;
     uint32_t newmask=mask&(~(1<<i));    
     if (findLatched(bit,newmask,f)){
@@ -1474,7 +1482,7 @@ bool findLatched(int bit){
 
 bool verify(){
 
-
+  bool ff_cp;
   bool o7=getO7(data[0].out);
   bool o8=getO8(data[0].out);
 
@@ -1510,13 +1518,12 @@ bool verify(){
       bool frr=fdc&&rom&&ras2;
       bool nrcc=!ras2&&cas2&&cas0;
       o7=!(
-           (getTrdir(state) && ! getFfcp(state) && (frcc||frr) )||
-           (getTrdir(state) && !  getO7(state)   && (frcc||frr) )||
-           (getFfcp(state)  && !  getO7(state)   && (frcc||frr) )||
-           nrcc
+           (frcc&&!o7) ||
+           (frr&&!o7)  ||
+           nrcc//&&!getO7(state))
            );
       stateKnown=true;
-      state=d.out;
+      state=d.out^OUTNEG;
     }
 
     if (getWr(d.inp)){
@@ -1529,7 +1536,7 @@ bool verify(){
     }
 
 
-
+    ff_cp = cas2 || cas0 || o7 || o8;
 
     
     if (stateKnown && o7 != getO7(d.out)){
@@ -1546,9 +1553,15 @@ bool verify(){
       return false;
     }
 
-
+    if (ff_cp != getFfcp(d.out)){
+      cout<<"BAD ff_cp PREDICTION @ "<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getFfcp(d.out)<<endl;
+      return false;
+    }
+    
     
   }
+  cout<<"ff_cp is ok"<<endl;
   cout<<"7 is ok"<<endl;
   cout<<"8 is ok"<<endl;
   return true;

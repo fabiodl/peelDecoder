@@ -157,24 +157,22 @@ Net effect o7-f
 =state changer expression=
 asel&~~fdc | asel&~~rom | ~~ras2 | ~cas2 | ~cas0 | wr
 ==checksr==
+
 tr_dir=~ras2&cas2&~cas0&Do6 | ~ras2&~cas0&~Do8 | ~cas2&~cas0&~Do8 | ~fdc&~cas0 | ~rom&~cas0
 
-tr_ce=~cas0&Qtr_dir&~Qff_cp&~Dtr_ce&Do6&~Do8 | ~cas0&Qtr_dir&~Qo7&~Dtr_ce&Do6&~Do8 | ~cas0&Qff_cp&~Qo7&~Dtr_ce&Do6&~Do8 | ~ras2&~cas0&~Qtr_dir&~Qff_cp&Dtr_ce | ~ras2&~cas0&Qtr_dir&Qff_cp&Dtr_ce | ras2&Qtr_dir&~Qff_cp&Dtr_ce&~Do6 | ras2&Qtr_dir&~Qo7&Dtr_ce&~Do6 | ras2&Qff_cp&~Qo7&Dtr_ce&~Do6 | ~cas2&~cas0&Qtr_dir&~Qff_cp&~Do8 | ~cas2&~cas0&Qtr_dir&~Qo7&~Do8 | ~cas2&~cas0&Qff_cp&~Qo7&~Do8 | ~ras2&~cas0&Qo7&Dtr_ce | ras2&~cas2&Dtr_ce&~Do6 | ~ras2&~cas0&Do6&~Do8 | ~cas2&~cas0&Dtr_ce | ~ras2&Dtr_ce&Do6
+tr_ce=~cas0&Qo7&~Dtr_ce&Do6&~Do8 | ~ras2&~cas0&~Qo7&Dtr_ce | ras2&~cas2&Dtr_ce&~Do6 | ras2&Qo7&Dtr_ce&~Do6 | ~cas2&~cas0&Qo7&~Do8 | ~ras2&~cas0&Do6&~Do8 | ~ras2&~cas0&Dtr_ce&@ | ~cas2&~cas0&Dtr_ce | ~ras2&Dtr_ce&Do6
 
-ff_cp=~Qtr_dir&~Qff_cp | Qtr_dir&Qff_cp | cas2 | cas0 | Qo7 | Do8
+ff_cp=cas2 | cas0 | ~Qo7 | Do8 | @
 
-ff_oe=~ras2&Qtr_dir&~Qff_cp&~Dtr_ce&Do6 | ~ras2&Qtr_dir&~Qo7&~Dtr_ce&Do6 | ~ras2&Qff_cp&~Qo7&~Dtr_ce&Do6 | ras2&~Qtr_dir&~Qff_cp&~Dtr_ce | ras2&Qtr_dir&Qff_cp&~Dtr_ce | ~Qtr_dir&~Qff_cp&~Dtr_ce&~Do6 | Qtr_dir&Qff_cp&~Dtr_ce&~Do6 | cas2&Qtr_dir&~Qff_cp | cas2&Qtr_dir&~Qo7 | cas2&Qff_cp&~Qo7 | ras2&Qo7&~Dtr_ce | ras2&~Dtr_ce&~Do6 | Qo7&~Dtr_ce&~Do6 | ras2&cas2 | cas2&~Dtr_ce | cas2&Do6 | cas0 | Do8
+ff_oe=~ras2&Qo7&~Dtr_ce&Do6 | ras2&~Qo7&~Dtr_ce | ras2&~Dtr_ce&~Do6 | ~Qo7&~Dtr_ce&~Do6 | ras2&~Dtr_ce&@ | ~Dtr_ce&~Do6&@ | ras2&cas2 | cas2&Qo7 | cas2&~Dtr_ce | cas2&Do6 | cas0 | Do8
 
 cdcas0=~cas0
 
 o6=ras2
 
-o7=~Qtr_dir&~Qff_cp | Qtr_dir&Qff_cp | Qo7
+o7=~Qo7 | @
 
 o8=cas2&Do6&~Do8 | ras2&cas2 | ras2&Do8 | ~cas2&Do8 | ~Do6&Do8
 
-====
-!o7=fdc&rom&cas2&cas0&Qtr_dir&~Qff_cp | fdc&rom&cas2&cas0&Qtr_dir&~Qo7 | fdc&rom&cas2&cas0&Qff_cp&~Qo7
-  | fdc&rom&ras2&Qtr_dir&~Qff_cp      | fdc&rom&ras2&Qtr_dir&~Qo7      | fdc&rom&ras2&Qff_cp&~Qo7
-
-| ~ras2&cas2&cas0&~wr | ~ras2&cas2&cas0&Qtr_dir | ~ras2&cas2&cas0&Qff_cp | ~ras2&cas2&cas0&Qo7
+=====
+!o7=fdc&rom&cas2&cas0&Qo7 | ~ras2&cas2&cas0&~wr | fdc&rom&ras2&Qo7 | ~ras2&cas2&cas0&Qo7 | ~ras2&cas2&cas0&~@
