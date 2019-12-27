@@ -1789,10 +1789,16 @@ bool findCombinatorial(int bit){
   cout<<"set on ";
   getExpression(getSet(f,bit+16,false),selected,false);
   cout<<endl;
-
+  cout<<"negated ";
+  getExpression(getSet(f,bit+16,false),selected,true);
+  cout<<endl;
+  
 
   cout<<"reset on ";
   getExpression(getSet(f,bit+16,true),selected,false);
+  cout<<endl;
+  cout<<"negated ";
+  getExpression(getSet(f,bit+16,true),selected,true);
   cout<<endl;
 
   
@@ -1809,9 +1815,6 @@ bool verify(){
   bool o8=getO8(data[0].out);
   ff_oe=getFfoe(data[0].out);
 
-
-  bool stateKnown=false;
-  uint8_t state=0;
   
   for (size_t i=1;i<data.size();i++){
     const Data& d=data[i];
@@ -1823,70 +1826,64 @@ bool verify(){
     bool cas0=getCas0(d.inp);
     bool rom=getRom(d.inp);
 
+ 
+    
+    if (d.edge){
+      o7=!(
+           (!o7 && fdc && rom && (ras2 || (cas0 && cas2) ))
+           ||
+           (!ras2 &&cas0 && cas2)
+           );
+    }
+
     if (getWr(d.inp)){
-      state=0;
+      o7=true;
     }
 
 
-    
     if (cas2){
       if (ras2||(!ras2&&getRas2(prevd.inp))){
         o8=ras2;
       }
     }
-
-
     
-    if (d.edge){
-      bool frcc=fdc&&rom&&cas2&&cas0;
-      bool frr=fdc&&rom&&ras2;
-      bool nrcc=!ras2&&cas2&&cas0;
-      o7=!(
-           (frcc&&!o7) ||
-           (frr&&!o7)  ||
-           nrcc//&&!getO7(state))
-           );
-      stateKnown=true;
-      state=d.out^OUTNEG;
-    }
-
-    if (getWr(d.inp)){
-      state=0;
-      o7=true;
-      stateKnown=true;
-      if (!getO7(d.out)){
-        cout<<"reset not working!"<<endl;
-      }
-    }
-
+    
     tr_dir=!cas0 && (!fdc || !rom || !o8 ) ;     
-    //    tr_ce= !cas0 && (
 
-    if (o8 ||cas0 || cas2 && (getRas2(prevd.inp) || !o7)   )
+    if (o8 ||cas0 || (cas2 && (getRas2(prevd.inp) || !o7))   )
       ff_oe=true;
-    if (!cas0 && !o8 && (!cas2&&!ras2&&getRas2(prevd.inp) || (ras2 && !o7) ||  (!cas2 && !o7) ))
+    if (!cas0 && !o8 && (  (!cas2&&!ras2&&getRas2(prevd.inp)) || (ras2 && !o7) ||  (!cas2 && !o7) ))
       ff_oe=false;
 
     
 
     tr_ce=!ff_oe;
 
-    //ff_cp = cas2 || cas0 || o7 || o8;        
-    ff_cp=ff_oe|o7;
+    ff_cp = cas2 || cas0 || o7 || o8;        
+    //ff_cp=ff_oe|o7;
+
     cdcas0=!cas0;
     o6=ras2;
+
+    /*if (d.edge){
+
+      uint8_t o=(o8<<7)|(o7<<6)|(o6<<5)|(cdcas0<<4)|(ff_oe<<3)|(ff_cp<<2)|(tr_ce<<1)|tr_dir;      
+      state=o^OUTNEG;
+      }*/
+
+
     
     //ff_cp=Dff_oe | Do7 ?!
     
-    if (stateKnown && tr_dir!=getTrdir(d.out)){
+    if (tr_dir!=getTrdir(d.out)){
       cerr<<"BAD tr_dir PREDICTION @"<<i<<endl;
-      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"D")<<"=>"<<getTrdir(d.out)<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getTrdir(d.out)<<endl;
       return false;
     }
 
-    if (stateKnown &&  tr_ce!=getTrce(d.out)){
+    if ( tr_ce!=getTrce(d.out)){
       cerr<<"BAD tr_ce PREDICTION @"<<i<<endl;
-      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"D")<<"=>"<<getTrce(d.out)<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getTrce(d.out)<<endl;
       return false;
     }
 
@@ -1896,9 +1893,9 @@ bool verify(){
       return false;
     }
        
-    if (stateKnown &&  ff_oe!=getFfoe(d.out)){
+    if (ff_oe!=getFfoe(d.out)){
       cerr<<"BAD ff_oe PREDICTION @"<<i<<endl;
-      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"D")<<"=>"<<getFfoe(d.out)<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getFfoe(d.out)<<endl;
       return false;
     }
     
@@ -1914,9 +1911,9 @@ bool verify(){
       return false;
     }
     
-    if (stateKnown && o7 != getO7(d.out)){
+    if (o7 != getO7(d.out)){
       cerr<<"BAD 7 PREDICTION @"<<i<<endl;
-      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"Q")<<"=>"<<getO7(d.out)<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getO7(d.out)<<endl;
       return false;
     }
         
