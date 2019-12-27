@@ -59,6 +59,9 @@ static inline bool getFfoe(uint8_t v){
   return v&(1<<3);
 }
 
+static inline bool getCdcas0(uint8_t v){
+  return v&(1<<4);
+}
 
 
 static inline bool getO6(uint8_t v){
@@ -821,7 +824,7 @@ void getTable(F& f,std::vector<bool> selected,bool neg){
 
 
 
-void getExpression(F& f,std::vector<bool> selected,bool neg){
+void getExpression(const F& f,std::vector<bool> selected,bool neg){
   
   std::vector<int> realIdx;
   std::vector<string> realNames;
@@ -1610,8 +1613,12 @@ bool findLatched(int bit){
 
 
 
+static uint8_t mux(uint s,uint a,uint b){
+  return (s&a) | (~s&b);
+}
 
-bool findCombinatorial(int bit,uint32_t mask,F& f){
+
+bool findCombinatorial(int bit,uint32_t mask,uint8_t prevMux,F& f){
 
   uint16_t state=0;
   bool stateKnown=false;
@@ -1619,7 +1626,7 @@ bool findCombinatorial(int bit,uint32_t mask,F& f){
   
   for (size_t i=1;i<data.size();++i){
     const Data& d=data[i];
-
+    const Data& prevd=data[i-1];
 
     if (d.edge){
         state=d.out^OUTNEG;
@@ -1634,7 +1641,7 @@ bool findCombinatorial(int bit,uint32_t mask,F& f){
     
 
     if (stateKnown){
-      uint32_t idx=(state==0x100?(1<<24):0) |(d.out<<16)|((state&0xFF)<<8)|d.inp;
+      uint32_t idx=(state==0x100?(1<<24):0) |(mux(prevMux,prevd.out,d.out)<<16)|((state&0xFF)<<8)|d.inp;
       idx&=mask;
       bool val=d.out&(1<<bit);
       if (!f.check(idx,val)){
@@ -1653,23 +1660,77 @@ bool findCombinatorial(int bit,uint32_t mask,F& f){
 
 
 
+F getSet(const F& f,int prevIdx,bool neg){
+  F s;
+  s.f.resize(f.f.size());
+  s.reset();
+  
+  for (size_t i=0;i<f.f.size();i++){
+    bool prev=i&(1<<prevIdx);
+    bool changed=f.f[i].v ^ prev;
+    bool stays=!f.f[i].v ^ neg;
+    if (f.f[i].k & (changed  || stays )){
+      s.f[i].k=true;
+      s.f[i].v=f.f[i].v ^ neg;            
+    }    
+  }
+  return s;
+  
+}
+
+
+
+
 bool findCombinatorial(int bit){
 
   uint32_t mask=0x1FFFFFF;
-  mask&=~(1<<(bit+16));
-  if (bit==1){
-    mask&=~(1<<(3+16));
-    mask&=~(1<<(3+8));
-    mask&=~(1<<(1+8));
-  }
+  uint8_t prevmux=0xFF;
 
+  
   F f(25);
-  if (!findCombinatorial(bit,mask,f)){
+  if (!findCombinatorial(bit,mask,prevmux,f)){
     cout<<"NON DETERMINISTIC"<<endl;
     return false;
   }
 
-  std::vector<size_t> tryRemoving;
+  //for (int i=7;i>=0;--i){
+  for (int i=0;i<8;++i){
+    uint8_t newmux=prevmux&(~(1<<i));
+    uint32_t newmask=mask;
+
+    
+    if ( (~newmux)&(1<<bit)){
+      newmask&=~(1<<(bit+16));     //this is self
+    }
+
+    if (bit==1){
+      if ( (~newmux)&(1<<3)){
+        newmask&=~(1<<(3+16));     //this is self
+      }
+    }
+      
+    if (bit==3){
+      if ( (~newmux)&(1<<1)){
+        newmask&=~(1<<(1+16));     //this is self
+      }
+    }
+
+        
+    if (findCombinatorial(bit,newmask,newmux,f)){
+      mask=newmask;
+      prevmux=newmux;
+    }
+    
+
+  }
+
+
+  
+
+  
+  cout<<"PREVMUX is"<<hex<<(int)prevmux<<outDesc(prevmux,"P")<<endl;
+  cout<<"MASK is"<<mask<<endl;
+    std::vector<size_t> tryRemoving;
 
   for (int i=8;i<16;i++){
     tryRemoving.push_back(i);
@@ -1683,12 +1744,11 @@ bool findCombinatorial(int bit){
     tryRemoving.push_back(i);
   }
 
-
   
   for (auto rem:tryRemoving){
     //if (i>=16 && i<24) continue;
     uint32_t newmask=mask&(~(1<<rem));    
-    if (findCombinatorial(bit,newmask,f)){
+    if (findCombinatorial(bit,newmask,prevmux,f)){
       mask=newmask;
     }
   }
@@ -1725,6 +1785,16 @@ bool findCombinatorial(int bit){
   cout<<"!"<<outNames[bit]<<"=";
   getExpression(f,selected,true);
   cout<<endl;
+
+  cout<<"set on ";
+  getExpression(getSet(f,bit+16,false),selected,false);
+  cout<<endl;
+
+
+  cout<<"reset on ";
+  getExpression(getSet(f,bit+16,true),selected,false);
+  cout<<endl;
+
   
   return true;
 }
@@ -1734,10 +1804,10 @@ bool findCombinatorial(int bit){
 
 bool verify(){
 
-  bool ff_cp,tr_dir,tr_ce,ff_oe;
+  bool ff_cp,tr_dir,tr_ce,ff_oe,cdcas0,o6;
   bool o7=getO7(data[0].out);
   bool o8=getO8(data[0].out);
-
+  ff_oe=getFfoe(data[0].out);
 
 
   bool stateKnown=false;
@@ -1790,42 +1860,33 @@ bool verify(){
     }
 
     tr_dir=!cas0 && (!fdc || !rom || !o8 ) ;     
-    tr_ce=getTrce(d.out); //!cas2 && tr_dir;
-   
-    //ff_cp = cas2 || cas0 || o7 || o8;        
-    ff_oe=!tr_ce;
+    //    tr_ce= !cas0 && (
 
+    if (o8 ||cas0 || cas2 && (getRas2(prevd.inp) || !o7)   )
+      ff_oe=true;
+    if (!cas0 && !o8 && (!cas2&&!ras2&&getRas2(prevd.inp) || (ras2 && !o7) ||  (!cas2 && !o7) ))
+      ff_oe=false;
+
+    
+
+    tr_ce=!ff_oe;
+
+    //ff_cp = cas2 || cas0 || o7 || o8;        
     ff_cp=ff_oe|o7;
+    cdcas0=!cas0;
+    o6=ras2;
     
     //ff_cp=Dff_oe | Do7 ?!
-
-    if (ff_oe!=getFfoe(d.out)){
-      cerr<<"BAD ff_oe PREDICTION @"<<i<<endl;
-      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"D")<<"=>"<<getTrdir(d.out)<<endl;
-      return false;
-    }
-
     
-
     if (stateKnown && tr_dir!=getTrdir(d.out)){
       cerr<<"BAD tr_dir PREDICTION @"<<i<<endl;
       cout<<inpDesc(d.inp)<<" "<<outDesc(state,"D")<<"=>"<<getTrdir(d.out)<<endl;
       return false;
     }
 
-    
-    
-    if (stateKnown && o7 != getO7(d.out)){
-      cerr<<"BAD 7 PREDICTION @"<<i<<endl;
-      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"Q")<<"=>"<<getO8(d.out)<<endl;
-      return false;
-    }
-
-    
-    
-    if (o8 != getO8(d.out)){
-      cerr<<"BAD 8 PREDICTION @"<<i<<endl;
-      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getO8(d.out)<<endl;
+    if (stateKnown &&  tr_ce!=getTrce(d.out)){
+      cerr<<"BAD tr_ce PREDICTION @"<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"D")<<"=>"<<getTrce(d.out)<<endl;
       return false;
     }
 
@@ -1834,13 +1895,41 @@ bool verify(){
       cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getFfcp(d.out)<<endl;
       return false;
     }
+       
+    if (stateKnown &&  ff_oe!=getFfoe(d.out)){
+      cerr<<"BAD ff_oe PREDICTION @"<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"D")<<"=>"<<getFfoe(d.out)<<endl;
+      return false;
+    }
+    
+    if (cdcas0!=getCdcas0(d.out)){
+      cout<<"BAD CdCas0 PREDICTION @ "<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getCdcas0(d.out)<<endl;
+      return false;
+    }
+
+    if (o6!=getO6(d.out)){
+      cout<<"BAD o6 PREDICTION @ "<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getO6(d.out)<<endl;
+      return false;
+    }
+    
+    if (stateKnown && o7 != getO7(d.out)){
+      cerr<<"BAD 7 PREDICTION @"<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(state,"Q")<<"=>"<<getO7(d.out)<<endl;
+      return false;
+    }
+        
+    if (o8 != getO8(d.out)){
+      cerr<<"BAD 8 PREDICTION @"<<i<<endl;
+      cout<<inpDesc(d.inp)<<" "<<outDesc(prevd.out)<<"=>"<<getO8(d.out)<<endl;
+      return false;
+    }
+
     
     
   }
-  cout<<"tr_dir is ok"<<endl;
-  cout<<"ff_cp is ok"<<endl;
-  cout<<"7 is ok"<<endl;
-  cout<<"8 is ok"<<endl;
+  cout<<"Verification complete"<<endl;
   return true;
 }
 
@@ -1871,7 +1960,7 @@ int main(int argc,char** argv){
   //tryTable8();
   //findLatched(6);
   //findMask(7);
-  //findCombinatorial(2);
+  //findCombinatorial(3);
   verify();
   //checkStay();
 

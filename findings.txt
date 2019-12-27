@@ -160,7 +160,17 @@ asel&~~fdc | asel&~~rom | ~~ras2 | ~cas2 | ~cas0 | wr
 
 tr_dir=~ras2&cas2&~cas0&Do6 | ~ras2&~cas0&~Do8 | ~cas2&~cas0&~Do8 | ~fdc&~cas0 | ~rom&~cas0
 
-tr_ce=~cas0&Qo7&~Dtr_ce&Do6&~Do8 | ~ras2&~cas0&~Qo7&Dtr_ce | ras2&~cas2&Dtr_ce&~Do6 | ras2&Qo7&Dtr_ce&~Do6 | ~cas2&~cas0&Qo7&~Do8 | ~ras2&~cas0&Do6&~Do8 | ~ras2&~cas0&Dtr_ce&@ | ~cas2&~cas0&Dtr_ce | ~ras2&Dtr_ce&Do6
+tr_ce=~cas0&Qo7&Do6&~Do8&~Dtr_ce|
+      ~cas0&~ras2&~Qo7&Dtr_ce |
+              ~ras2&Do6&Dtr_ce|
+       ras2&~cas2&~Do6&Dtr_ce |
+         ras2&Qo7&~Do6&Dtr_ce |
+         ~cas0&~ras2&Dtr_ce&@ |
+         ~cas0&~cas2&Dtr_ce   |
+         
+         ~cas0&~cas2&Qo7&~Do8 |
+         ~cas0&~ras2&Do6&~Do8 |
+      
 
 ff_cp=cas2 | cas0 | ~Qo7 | Do8 | @
 
@@ -194,3 +204,11 @@ cdcas0 tr_dir-1->1 tr_ce-1->1 ff_cp-0->1 ff_oe-0->1
 o6 
 o7 ff_cp-0->0 
 o8 tr_ce-1->0 ff_cp-0->0 ff_oe-0->0
+
+ff_oe=~ras2&Dff_oe&Do6&~Do7 | ras2&Dff_oe&~Do6 | ras2&Dff_oe&Do7 | Dff_oe&~Do6&Do7 | ras2&cas2 | cas2&Dff_oe | cas2&Do6 | cas2&~Do7 | ~Dcdcas0 | Do8
+
+!ff_oe=~ras2&~cas2&Dcdcas0&Do6&~Do8 | ras2&~cas2&~Dff_oe&~Do6 | ras2&~Dff_oe&~Do6&~Do7 | ~ras2&~Dff_oe&Dcdcas0&Do7 | ras2&~Dff_oe&Dcdcas0&~Do8 | ras2&~Dff_oe&~Do6&~Do8 | ~Dff_oe&Dcdcas0&Do6&~Do8 | ras2&Dcdcas0&~Do7&~Do8 | ~cas2&Dcdcas0&~Do7&~Do8 | ~Dff_oe&Dcdcas0&Do7&~Do8 | ~cas2&~Dff_oe&Dcdcas0 | ~ras2&~Dff_oe&Do6
+
+set on ras2&cas2 | cas2&Do6 | cas2&~Do7 | ~Dcdcas0 | Do8
+
+reset on ~ras2&~cas2&Dcdcas0&Do6&~Do8 | ras2&Dcdcas0&~Do7&~Do8 | ~cas2&Dcdcas0&~Do7&~Do8
