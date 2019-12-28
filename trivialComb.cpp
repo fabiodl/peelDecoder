@@ -1808,6 +1808,94 @@ bool findCombinatorial(int bit){
 
 
 
+bool physicalVerify(){
+
+
+  bool o6=getO6(data[0].out);
+  bool Qo7=!getO7(data[0].out);
+  bool o8=getO8(data[0].out);
+  bool tr_ce=getFfoe(data[0].out);
+  bool ff_oe=getFfoe(data[0].out);
+
+  
+  for (size_t i=1;i<data.size();i++){
+    const Data& d=data[i];
+    bool fdc=getFdc(d.inp);
+    bool cas2=getCas2(d.inp);
+    bool ras2=getRas2(d.inp);
+    bool cas0=getCas0(d.inp);
+    bool rom=getRom(d.inp);
+    bool wr=getWr(d.inp);
+
+    bool Dtr_ce,Dtr_dir,Dff_oe,Do6,Do8,Dff_cp;
+    bool ff_cp,tr_dir,cdcas0,o7;
+
+    
+    if (d.edge){
+      Qo7=
+        (Qo7 && fdc && rom && ras2) ||
+        (Qo7 && fdc && rom && cas2 && cas0) ||
+        (!ras2 && cas0 && cas2);
+    }
+    if (wr){
+      Qo7=false;
+    }
+    
+    Do8=
+      (cas2 && ras2) ||
+      (!cas2 && o8)  ||
+      (!o6 && o8);
+         
+    Dtr_dir=
+      cas0 ||
+      (rom && fdc && Do8);
+      
+    Dff_oe=
+      cas0 ||
+      Do8 ||
+      (o6 && cas2) ||
+      (cas2 && Qo7) ||
+      (ff_oe && ras2 && !Qo7) ||
+      (ff_oe && !o6 && !Qo7);
+
+    //Dtr_ce=!Dff_oe;
+    Dtr_ce=
+      (!Do8 && !cas0 && tr_ce &&  !o6 && !Qo7) ||
+      (!Do8 && !cas0 && tr_ce && !cas2) ||
+      (!Do8 && !cas0 && !ras2 && o6 && !cas2) ||
+      (!Do8 && !cas0 && !cas2 && Qo7);
+    
+
+    
+    Dff_cp= cas2 || cas0 || !Qo7 ||Do8;
+    
+    Do6=ras2;
+    
+    tr_dir=!Dtr_dir;
+    tr_ce=Dtr_ce;
+    ff_cp=Dff_cp;
+    ff_oe=Dff_oe;
+    cdcas0=!cas0;
+    o6=Do6;
+    o7=!Qo7;
+    o8=Do8;
+   
+    uint8_t o=(o8<<7)|(o7<<6)|(o6<<5)|(cdcas0<<4)|(ff_oe<<3)|(ff_cp<<2)|(tr_ce<<1)|tr_dir;
+    if (o!=d.out){
+      cerr<<"Mismatch @ "<<i<<" for "<<outDesc(o^d.out)
+          <<": prediction "<<outDesc(o)<<" actual "<<outDesc(d.out)<<endl;
+   
+      return false;
+    }
+    
+  }
+  cout<<"Physical verify complete"<<endl;
+  return true;
+  
+}
+
+
+
 bool verify(){
 
   bool ff_cp,tr_dir,tr_ce,ff_oe,cdcas0,o6;
@@ -1958,7 +2046,8 @@ int main(int argc,char** argv){
   //findLatched(6);
   //findMask(7);
   //findCombinatorial(3);
-  verify();
+  //verify();
+  physicalVerify();
   //checkStay();
 
   //findOutForcers();
