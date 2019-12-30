@@ -1808,17 +1808,109 @@ bool findCombinatorial(int bit){
 
 
 
-bool physicalVerify(){
+
+uint8_t step(uint16_t inp,uint8_t out,bool edge){
+  bool o6=getO6(out);
+  bool Qo7=!getO7(out);
+  bool o8=getO8(out);
+  bool tr_ce=getTrce(out);
+  bool ff_oe=getFfoe(out);
+
+  bool fdc=getFdc(inp);
+  bool cas2=getCas2(inp);
+  bool ras2=getRas2(inp);
+  bool cas0=getCas0(inp);
+  bool rom=getRom(inp);
+  bool wr=getWr(inp);
+
+  bool Dtr_ce,Dtr_dir,Dff_oe,Do6,Do8,Dff_cp;
+  bool ff_cp,tr_dir,cdcas0,o7;
+  
+  //cout<<"Qo7 is"<<Qo7<<endl;
+    if (edge){
+      //cout<<"latching"<<endl;
+      Qo7=
+        (Qo7 && fdc && rom && ras2) ||
+        (Qo7 && fdc && rom && cas2 && cas0) ||
+        (!ras2 && cas0 && cas2);
+    }
+    if (wr){
+      Qo7=false;
+      //cout<<"resetting"<<endl;
+    }
+    
+    Do8=
+      (cas2 && ras2) ||
+      (!cas2 && o8)  ||
+      (!o6 && o8);
+         
+    Dtr_dir=
+      cas0 ||
+      (rom && fdc && Do8);
+      
+    Dff_oe=
+      cas0 ||
+      Do8 ||
+      (o6 && cas2) ||
+      (cas2 && Qo7) ||
+      (ff_oe && ras2 && !Qo7) ||
+      (ff_oe && !o6 && !Qo7);
+
+    //Dtr_ce=!Dff_oe;
+    Dtr_ce=
+      (!Do8 && !cas0 && tr_ce &&  !o6 && !Qo7) ||
+      (!Do8 && !cas0 && tr_ce && !cas2) ||
+      (!Do8 && !cas0 && !ras2 && o6 && !cas2) ||
+      (!Do8 && !cas0 && !cas2 && Qo7);
+    
+
+    /*cout<<"FF_OE="
+        <<cas0 
+        <<Do8 
+        <<(o6 && cas2) 
+        <<(cas2 && Qo7) 
+        <<(ff_oe && ras2 && !Qo7) 
+        <<(ff_oe && !o6 && !Qo7)
+        <<"="<<Dff_oe<<endl;
+    cout<<"TR_CE="
+        <<(!Do8 && !cas0 && tr_ce &&  !o6 && !Qo7) 
+        <<(!Do8 && !cas0 && tr_ce && !cas2) 
+        <<(!Do8 && !cas0 && !ras2 && o6 && !cas2) 
+        <<(!Do8 && !cas0 && !cas2 && Qo7)
+        <<"="<<Dtr_ce<<endl;*/
+    
+    Dff_cp= cas2 || cas0 || !Qo7 ||Do8;
+    
+    Do6=ras2;
+    
+    tr_dir=!Dtr_dir;
+    tr_ce=Dtr_ce;
+    ff_cp=Dff_cp;
+    ff_oe=Dff_oe;
+    cdcas0=!cas0;
+    o6=Do6;
+    o7=!Qo7;
+    o8=Do8;
+    //cout<<"o7 is"<<o7<<endl;
+   
+    uint8_t o=(o8<<7)|(o7<<6)|(o6<<5)|(cdcas0<<4)|(ff_oe<<3)|(ff_cp<<2)|(tr_ce<<1)|tr_dir;
+  
+    return o;
+}
 
 
-  bool o6=getO6(data[0].out);
-  bool Qo7=!getO7(data[0].out);
-  bool o8=getO8(data[0].out);
-  bool tr_ce=getFfoe(data[0].out);
-  bool ff_oe=getFfoe(data[0].out);
+
+bool physicalVerify(int skip=1){
+
+
+  bool o6=getO6(data[skip].out);
+  bool Qo7=!getO7(data[skip].out);
+  bool o8=getO8(data[skip].out);
+  bool tr_ce=getTrce(data[skip].out);
+  bool ff_oe=getFfoe(data[skip].out);
 
   
-  for (size_t i=1;i<data.size();i++){
+  for (size_t i=1+skip;i<data.size();i++){
     const Data& d=data[i];
     bool fdc=getFdc(d.inp);
     bool cas2=getCas2(d.inp);
@@ -2019,6 +2111,59 @@ bool verify(){
 }
 
 
+
+enum Sig{ASEL=0x01,
+         FDC=0x02,
+         ROM=0x04,
+         RAS2=0x08,
+         CAS2=0x10,
+         CAS0=0x20,
+         WR=0x40,
+         FRES=0x80};
+void genTest(){
+  uint8_t out=0;
+  uint8_t inp=0;
+  std::vector<int> changes={WR|CAS2|RAS2|CAS0,
+                            WR,
+                            CAS0,
+                            CAS0|RAS2,
+                            ASEL,
+                            CAS0|CAS2,
+                            CAS2,
+                            CAS2,
+                            ASEL|RAS2,
+                            ASEL,
+                            CAS2
+                            
+                            
+                            
+  };
+
+  cout<<"(";
+  for (auto i:inpNames){
+    cout<<i<<" ";
+  }
+  cout<<"-> ";
+  for (auto o:outNames){
+    cout<<o<<" ";
+  }
+  cout<<")"<<endl;
+  
+  for (auto chg:changes){  
+    bool edge=(chg&1) && (~inp&1);
+    inp=inp^chg;
+    out=step(inp,out,edge);
+    for (auto i=0;i<8;i++){
+      cout<<(inp&(1<<i)?'1':'0')<<" ";
+    }
+    cout<<"-> ";
+    for (auto i=0;i<8;i++){
+      cout<<(out&(1<<i)?'H':'L')<<" ";
+    }
+    cout<<endl;
+  }
+}
+
 int main(int argc,char** argv){
 
   for (uint8_t i=0;i<inpNames.size();++i){
@@ -2047,7 +2192,8 @@ int main(int argc,char** argv){
   //findMask(7);
   //findCombinatorial(3);
   //verify();
-  physicalVerify();
+  //physicalVerify();
+  genTest();
   //checkStay();
 
   //findOutForcers();

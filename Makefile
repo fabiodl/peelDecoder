@@ -27,7 +27,7 @@ convVcd: $(CVOBJS)
 	g++ $(CVOBJS) -o $@ $(CXXFLAGS)
 
 
-all: checkPeel testInference scoreConfs trivialComb flipExtractor
+all: checkPeel testInference scoreConfs trivialComb flipExtractor convVcd
 
 # pull in dependency info for *existing* .o files
 -include $(OBJS:.o=.d)

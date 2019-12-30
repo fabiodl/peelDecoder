@@ -1,0 +1,89 @@
+TITLE 'MCD'
+DESIGNER 'D'
+DATE '30 Dec 2019'
+
+Description
+  Enter description here ...
+End_Desc;
+
+PEEL18CV8
+
+CLK pin 1
+
+"I/O CONFIGURATION DECLARATION
+"IOC (PIN_NO	'PIN_NAME'	POLARITY	OUTPUT_TYPE	FEEDBACK_TYPE	)
+FDC Pin 2 
+ROM Pin 3 
+RAS2 Pin 4 
+CAS2 Pin 5 
+CAS0 Pin 6 
+WR Pin 7 
+FRES Pin 8 
+ IOC (  12	'O8'		Pos		OutCom		Feed_Pin	)
+ IOC (  13	'O7'		Neg		OutReg		Feed_Reg	)
+ IOC (  14	'O6'		Pos		OutCom		Feed_Pin	)
+ IOC (  15	'CD_CAS0'	Pos		OutCom		Feed_Pin	)
+ IOC (  16	'FF_OE'		Pos		OutCom		Feed_Pin	)
+ IOC (  17	'FF_CP'		Pos		OutCom		Feed_Pin	)
+ IOC (  18	'TR_CE'		Pos		OutCom		Feed_Pin	)
+ IOC (  19	'TR_DIR'	Neg		OutCom		Feed_Pin	)
+
+AR NODE 21  "Global Asynchronous Reset
+SP NODE 22  "Global Synchronous Preset
+
+DEFINE
+
+
+EQUATIONS
+
+AR = WR;
+
+SP = 0;
+
+"All Equations must end with semicolons.
+"Internal or External output names appended with extensions:
+"  1) .COM for Combinatorial Output
+"  2) .D for D-type Registered Output
+"  3) .OE for Output Enable Control
+
+
+TR_DIR.Com =  CAS0 #
+              (ROM & FDC & O8);
+
+
+TR_CE.Com =  (!O8 & !CAS0 & TR_CE &  !O6 & O7) #
+             (!O8 & !CAS0 & TR_CE & !CAS2) #
+             (!O8 & !CAS0 & !RAS2 & O6 & !CAS2) #
+             (!O8 & !CAS0 & !CAS2 & !O7);
+FF_CP.Com =  CAS2 # CAS0 # O7 #O8;
+
+FF_OE.Com =   CAS0 #
+              O8 #
+              (O6 & CAS2) #
+              (CAS2 & !O7) #
+              (FF_OE & RAS2 & O7) #
+              (FF_OE & !O6 & O7);
+CD_CAS0.Com = !CAS0;
+O6.Com = RAS2;
+O7.D := (!O7 & FDC & ROM & RAS2) #
+        (!O7 & FDC & ROM & CAS2 & CAS0) #
+        (!RAS2 & CAS0 & CAS2);
+O8.Com =  (CAS2 & RAS2) #
+          (!CAS2 & O8)  #
+          (!O6 & O8); 
+
+
+
+TEST_VECTORS 
+(clk fdc rom ras2 cas2 cas0 wr fres -> tr_dir tr_ce ff_cp ff_oe cd_cas0 o6 o7 o8 )
+0 0 0 1 1 1 1 0 -> L L H H L H H H 
+0 0 0 1 1 1 0 0 -> L L H H L H H H 
+0 0 0 1 1 0 0 0 -> H L H H H H H H 
+0 0 0 0 1 1 0 0 -> L L H H L L H L 
+1 0 0 0 1 1 0 0 -> L L H H L L L L 
+1 0 0 0 0 0 0 0 -> H H L L H L L L 
+1 0 0 0 1 0 0 0 -> H L H H H L L L 
+1 0 0 0 0 0 0 0 -> H H L L H L L L 
+0 0 0 1 0 0 0 0 -> H H L L H H L L 
+1 0 0 1 0 0 0 0 -> H H H L H H H L 
+1 0 0 1 1 0 0 0 -> H L H H H H H H 
