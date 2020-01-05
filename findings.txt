@@ -212,3 +212,55 @@ ff_oe=~ras2&Dff_oe&Do6&~Do7 | ras2&Dff_oe&~Do6 | ras2&Dff_oe&Do7 | Dff_oe&~Do6&D
 set on ras2&cas2 | cas2&Do6 | cas2&~Do7 | ~Dcdcas0 | Do8
 
 reset on ~ras2&~cas2&Dcdcas0&Do6&~Do8 | ras2&Dcdcas0&~Do7&~Do8 | ~cas2&Dcdcas0&~Do7&~Do8
+
+0->0 20 
+2->2 a 1a 22 
+3->3 b 2b 2f 3f 
+4->4 c 1c 1e 3e 
+6->2 6 a e 1a 1e 26 36 3e 
+7->7 f 17 1f 27 2f 37 3e 3f 
+a->2 a 1a 
+b->3 b 2b 2f 3e 3f 
+c->4 c 3e 
+e->2 6 a e 1e 2e 3e 
+f->7 f 2e 2f 3e 3f 
+16->16 17 1e 36 3e 
+17->7 f 17 27 
+1a->1a 1b 1e 1f 3a 3b 3f 
+1b->b 1b 1f 3b 3f 
+1c->c 1c 1e 3c 3e 
+1e->e 16 17 1a 1c 1e 1f 3e 
+1f->7 b f 1b 1f 2f 3e 3f 
+20->20 22 26 36 3e 
+22->1a 20 
+24->20 24 26 3e 
+26->2 6 20 24 26 2e 36 3e 66 
+27->7 3e 
+2b->3e 
+2c->6c 
+2e->a 26 2e 3e 6e 
+2f->7 3e 
+36->16 17 20 26 36 37 3e 77 
+37->7 17 37 77 
+3a->1a 1b 3a 3b 3e 7b 
+3b->b 1b 7b 
+3c->1c 2c 3c 3e 6c 7c 
+3e->a e 16 17 1a 1c 1e 20 24 26 2e 36 37 3a 3c 3e 6e 7e 
+3f->7 b 1b 1f 3e 
+63->3f 63 6b 6f 7f 
+64->3e 64 6c 7c 7e 
+66->26 3e 66 6e 7e 
+67->3e 3f 67 6f 7f 
+6b->3e 3f 63 6b 6f 7f 
+6c->3e 64 6c 
+6e->26 3e 66 6e 7e 
+6f->3e 67 6f 
+77->67 77 
+7b->6b 7b 
+7c->3e 7c 7e 
+7e->3e 6e 7e fe 
+7f->3e 
+9e->9e be 
+be->3e 9e be 
+de->9e de 
+fe->de fe 
