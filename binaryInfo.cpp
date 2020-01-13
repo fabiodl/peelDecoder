@@ -3,6 +3,7 @@
 #include <map>
 #include <set>
 #include <vector>
+#include "ios.h"
 
 static const int CHANNELS=8;
 static size_t freq=32000000;
@@ -76,73 +77,6 @@ bool info(const char* name,size_t unstableT=0){
 
 
 
-
-static inline bool getAsel(uint8_t v){
-  return v&1;
-}
-
-static inline bool getFdc(uint8_t v){
-  return v&(1<<1);
-}
-
-static inline bool getRom(uint8_t v){
-  return v&(1<<2);
-}
-
-static inline bool getRas2(uint8_t v){
-  return v&(1<<3);
-}
-
-static inline bool getCas2(uint8_t v){
-  return v&(1<<4);
-}
-
-static inline bool getCas0(uint8_t v){
-  return v&(1<<5);
-}
-
-static inline bool  getWr(uint8_t v){
-  return v&(1<<6);
-}
-
-
-static inline bool getTrdir(uint8_t v){
-  return v&1;
-}
-
-
-static inline bool getTrce(uint8_t v){
-  return v&(1<<1);
-}
-
-
-
-static inline bool getFfcp(uint8_t v){
-  return v&(1<<2);
-}
-
-static inline bool getFfoe(uint8_t v){
-  return v&(1<<3);
-}
-
-static inline bool getCdcas0(uint8_t v){
-  return v&(1<<4);
-}
-
-
-static inline bool getO6(uint8_t v){
-  return v&(1<<5);
-}
-
-static inline bool getO7(uint8_t v){
-  return v&(1<<6);
-}
-
-static inline bool getO8(uint8_t v){
-  return v&(1<<7);
-}
-
-
 std::vector<uint8_t> inp;
 std::vector<uint8_t> out;
 
@@ -211,45 +145,194 @@ std::ostream& operator<<(std::ostream& o,const EdgeDelay& d){
 }
 
 
+EdgeDelay cas0Cd,ras2O6,ffoeTrce;
+Delay ras2Asel,cas0Asel,cas2Asel,fdcAsel,romAsel;
+Delay aselQo7;
+EdgeDelay inpDo8,inpTrdir,inpFfoe,inpFfcp;
+
+
 void checkDelay(){
 
-  EdgeDelay cas0,ras2,ffoe;
-  
+
+    
+  bool Qo7=getO7(out[0]);
+  bool Do8=getO8(out[0]);
+  bool trDir=getTrdir(out[0]);
+  bool ffOe=getFfoe(out[0]);
+  bool ffCp=getFfcp(out[0]);
   for (size_t i=1;i<inp.size();i++){
+    bool fdc=getFdc(inp[i]);
+    bool rom=getRom(inp[i]);
+    bool ras2=getRas2(inp[i]);
+    bool cas2=getCas2(inp[i]);
+    bool cas0=getCas0(inp[i]);
+    bool wr=getWr(inp[i]);
+
     
     if  (getCas0(inp[i])!=getCas0(inp[i-1])){
       size_t j;
       for (j=0;getCdcas0(out[i+j])==getCas0(inp[i]);j++);      
       //cout<<"j"<<j<<endl;
-      cas0.push(j,getCas0(inp[i]));
+      cas0Cd.push(j,getCas0(inp[i]));
     }
 
     if  (getRas2(inp[i])!=getRas2(inp[i-1])){
       size_t j;
       for (j=0;getO6(out[i+j])!=getRas2(inp[i]);j++);            
-      ras2.push(j,getRas2(inp[i]));
+      ras2O6.push(j,getRas2(inp[i]));
     }
 
     if (getFfoe(out[i])!=getFfoe(out[i-1])){
       size_t j;
       for (j=0;getTrce(out[i+j])==getFfoe(out[i]);j++);            
-      ffoe.push(j,getFfoe(out[i]));
+      ffoeTrce.push(j,getFfoe(out[i]));
     }
 
-    
-  }
-  cout<<"cas0 "<<cas0<<endl
-      <<"ras2 "<<ras2<< endl
-      <<"ffoe "<<ffoe<<endl;
 
-    ;
-  
+    if (getAsel(inp[i]) && !getAsel(inp[i-1])){
+      size_t j;
+      for (j=0;j<i && getRas2(inp[i])==getRas2(inp[i-j]);j++);
+      if (j!=i){
+        ras2Asel.push(j);
+      }
+
+      for (j=0;j<i && getCas2(inp[i])==getCas2(inp[i-j]);j++);
+      if (j!=i){
+        cas2Asel.push(j);
+      }
+
+      for (j=0;j<i && getCas0(inp[i])==getCas0(inp[i-j]);j++);
+      if (j!=i){
+        cas0Asel.push(j);
+      }
+
+      for (j=0;j<i && j<0x1000 && getFdc(inp[i])==getFdc(inp[i-j]);j++);
+      if (j!=i){
+        fdcAsel.push(j);
+      }
+
+      for (j=0;j<i && j<0x1000 && getRom(inp[i])==getRom(inp[i-j]);j++);
+      if (j!=i){
+        romAsel.push(j);
+      }
+
+      bool newO7= !(
+        (!Qo7 && fdc && rom && ras2) ||
+        (!Qo7 && fdc && rom && cas2 && cas0) ||
+        (!ras2 && cas0 &&cas2)
+                    );
+      if (wr) newO7=true;
+      
+      if (newO7!=Qo7){
+        for (j=0;getO7(out[i+j])!=newO7;j++);
+        aselQo7.push(j);
+
+      }
+      Qo7=newO7;
+      
+    }//asel trans
+
+    if (wr) Qo7=true;
+    
+    bool newDo8=
+      (cas2 && ras2) ||
+      (!cas2 && Do8)  ||
+      (!getO6(out[i]) && Do8);
+    if (newDo8!=Do8){
+      size_t j;
+      for (j=0;getO8(out[i+j])!=newDo8;j++);
+      inpDo8.push(j,newDo8);
+    }
+    Do8=newDo8;
+
+    bool o8glitch;
+    {
+      size_t j,k;
+      for (j=1;j<3&&getO8(out[i+j])==getO8(out[i]);j++);
+      for (k=1;k<3&&getO8(out[i-k])==getO8(out[i]);k++);
+      o8glitch=(j+k-2)<3;      //-2 because @ the loop exit is the first bad
+    }
+    
+    
+    bool newTrdir=! (
+                     cas0 ||
+                     (rom&&fdc && getO8(out[i]))
+                     );
+
+    
+    if (newTrdir!=trDir && !o8glitch ){
+      size_t j;
+      for (j=0;getTrdir(out[i+j])!=newTrdir;j++);
+      inpTrdir.push(j,newTrdir);
+      if (j>10){
+        cout<<"bad at "<<i<<" = "<<((i+10)/200E6   ) <<" "<<inpDesc(inp[i])<<"->"
+            <<newTrdir<<endl;
+        
+      }
+    }
+    trDir=newTrdir;
+
+    if (!o8glitch){    
+      bool newFfoe=
+        cas0 ||
+        getO8(out[i]) ||
+        (getO6(out[i]) && cas2) ||
+        (cas2 && !getO7(out[i])) ||
+        (ffOe && ras2 && getO7(out[i])) ||
+        (ffOe && !getO6(out[i]) && getO7(out[i]));
+
+      if (newFfoe!=ffOe){
+        size_t j;
+        for (j=0;getFfoe(out[i+j])!=newFfoe;j++);
+        inpFfoe.push(j,newFfoe);
+         if (j>10){
+           cout<<"bad at "<<i<<" = "<<((i+10)/200E6   ) <<" "<<inpDesc(inp[i])<<"->"
+               <<newFfoe<<" trans "<<inpDesc(inp[i]^inp[i-1])<< endl;
+           
+         }
+      }
+      ffOe=newFfoe;         
+
+      bool newFfcp= cas2 || cas0 || getO7(out[i]) || getO8(out[i]);
+      
+      if (newFfcp!=ffCp){
+        size_t j;
+        for (j=0;getFfcp(out[i+j])!=newFfcp;j++);
+        inpFfcp.push(j,newFfcp);        
+      }
+      ffCp=newFfcp;
+
+    }//o8glitch 
+  }  
 }
 
 
+void printStats(){
+  cout
+    <<"ras2->asel setup"<<ras2Asel<<endl
+    <<"cas2->asel setup"<<cas2Asel<<endl
+    <<"cas0->asel setup"<<cas0Asel<<endl
+    <<"fdc->asel setup"<<fdcAsel<<endl
+    <<"rom->asel setup"<<romAsel<<endl
+    
+    <<"asel->q07 "<<aselQo7<<endl
+    <<"inp->cdCas0 "<<cas0Cd<<endl
+    <<"inp(ras2)->o6 "<<ras2O6<< endl
+    <<"inp->Do8"<<inpDo8<<endl
+    <<"inp->trDir"<<inpTrdir<<endl
+    <<"inp->ffOe"<<inpFfoe<<endl
+    <<"ffoe->trce"<<ffoeTrce<<endl
+    <<"inp->ffCp"<<inpFfoe<<endl
+    ;
+
+}
+
 int main(int argc,char** argv){
-  loadConv(argv[1],10);
-  cout<<"size"<<inp.size()<<endl;
-  checkDelay();
-  
+
+  for (int i=1;i<argc;i++){
+    loadConv(argv[i],10);
+    cout<<argv[i]<<" size "<<inp.size()<<endl;
+    checkDelay();
+  }
+  printStats();
 }
