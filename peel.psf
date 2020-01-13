@@ -51,10 +51,6 @@ TR_DIR.Com =  CAS0 #
               (ROM & FDC & O8);
 
 
-TR_CE.Com =  (!O8 & !CAS0 & TR_CE &  !O6 & O7) #
-             (!O8 & !CAS0 & TR_CE & !CAS2) #
-             (!O8 & !CAS0 & !RAS2 & O6 & !CAS2) #
-             (!O8 & !CAS0 & !CAS2 & !O7);
 FF_CP.Com =  CAS2 # CAS0 # O7 #O8;
 
 FF_OE.Com =   CAS0 #
@@ -63,6 +59,10 @@ FF_OE.Com =   CAS0 #
               (CAS2 & !O7) #
               (FF_OE & RAS2 & O7) #
               (FF_OE & !O6 & O7);
+
+TR_CE.Com =  !FF_OE;
+
+
 CD_CAS0.Com = !CAS0;
 O6.Com = RAS2;
 O7.D := (!O7 & FDC & ROM & RAS2) #
