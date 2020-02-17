@@ -149,7 +149,9 @@ EdgeDelay cas0Cd,ras2O6,ffoeTrce;
 Delay ras2Asel,cas0Asel,cas2Asel,fdcAsel,romAsel;
 Delay aselQo7;
 EdgeDelay inpDo8,inpTrdir,inpFfoe,inpFfcp;
+EdgeDelay wrSetup,wrHold;
 
+Delay wrNeighSetup[8],wrNeighHold[8];
 
 void checkDelay(){
 
@@ -214,6 +216,16 @@ void checkDelay(){
       for (j=0;j<i && j<0x1000 && getRom(inp[i])==getRom(inp[i-j]);j++);
       if (j!=i){
         romAsel.push(j);
+      }
+
+      for (j=0;j<i && j<0x1000 && getWr(inp[i])==getWr(inp[i-j]);j++);
+      if (j!=i){
+        wrSetup.push(j,getWr(inp[i]));
+      }
+
+      for (j=0; j<0x1000 && getWr(inp[i])==getWr(inp[i+j]);j++);
+      if (i+j!=inp.size()){
+        wrHold.push(j,getWr(inp[i]));
       }
 
       bool newO7= !(
@@ -302,7 +314,27 @@ void checkDelay(){
       }
       ffCp=newFfcp;
 
-    }//o8glitch 
+    }//o8glitch
+
+    if (getWr(inp[i])!=getWr(inp[i-1])){
+
+      for (int s=0;s<8;s++){
+        size_t j;
+        for (j=0;j<i && j<0x1000 && (((inp[i]^inp[i-j])&(1<<s))==0); j++);
+        if (i!=j){
+          wrNeighSetup[s].push(j-1);
+        }
+
+        for (j=0;j+i<inp.size() && j<0x1000 && (((inp[i]^inp[i+j])&(1<<s))==0); j++);
+        if (i+j!=inp.size()){
+          wrNeighHold[s].push(j-1);
+        }
+        
+      }
+
+    }
+
+    
   }  
 }
 
@@ -314,7 +346,8 @@ void printStats(){
     <<"cas0->asel setup"<<cas0Asel<<endl
     <<"fdc->asel setup"<<fdcAsel<<endl
     <<"rom->asel setup"<<romAsel<<endl
-    
+    <<"wr->asel setup"<<wrSetup<<endl
+    <<"wr->asel hold"<<wrHold<<endl
     <<"asel->q07 "<<aselQo7<<endl
     <<"inp->cdCas0 "<<cas0Cd<<endl
     <<"inp(ras2)->o6 "<<ras2O6<< endl
@@ -325,14 +358,163 @@ void printStats(){
     <<"inp->ffCp"<<inpFfoe<<endl
     ;
 
+  for (size_t i=0;i<8;i++){
+    cout<<inpNames[i]<<" setup "<<wrNeighSetup[i]<<" hold "<<wrNeighHold[i]<<endl;
+  }
+
 }
+
+
+
+
+
+
+
+
+
+bool physicalVerify(int skip=20){
+
+
+  bool o6=getO6(out[skip]);
+  bool Qo7=!getO7(out[skip]);
+  bool o8=getO8(out[skip]);
+  bool tr_ce=getTrce(out[skip]);
+  bool ff_oe=getFfoe(out[skip]);
+
+  
+  for (size_t i=1+skip;i<inp.size();i++){
+    bool fdc=getFdc(inp[i]);
+    bool cas2=getCas2(inp[i]);
+    bool ras2=getRas2(inp[i]);
+    bool cas0=getCas0(inp[i]);
+    bool rom=getRom(inp[i]);
+    bool wr=getWr(inp[i]);
+
+    bool Dtr_ce,Dtr_dir,Dff_oe,Do6,Do8,Dff_cp;
+    bool ff_cp,tr_dir,cdcas0,o7;
+
+    
+    if (getAsel(inp[i])&&!getAsel(inp[i-1])){
+      Qo7=
+        (Qo7 && fdc && rom && ras2) ||
+        (Qo7 && fdc && rom && cas2 && cas0) ||
+        (!ras2 && cas0 && cas2);
+    }
+    if (wr){
+      Qo7=false;
+    }
+    
+    Do8=
+      (cas2 && ras2) ||
+      (!cas2 && o8)  ||
+      (!o6 && o8);
+         
+    Dtr_dir=
+      cas0 ||
+      (rom && fdc && Do8);
+      
+    Dff_oe=
+      cas0 ||
+      Do8 ||
+      (o6 && cas2) ||
+      (cas2 && Qo7) ||
+      (ff_oe && ras2 && !Qo7) ||
+      (ff_oe && !o6 && !Qo7);
+
+    //Dtr_ce=!Dff_oe;
+    Dtr_ce=
+      (!Do8 && !cas0 && tr_ce &&  !o6 && !Qo7) ||
+      (!Do8 && !cas0 && tr_ce && !cas2) ||
+      (!Do8 && !cas0 && !ras2 && o6 && !cas2) ||
+      (!Do8 && !cas0 && !cas2 && Qo7);
+    
+
+    
+    Dff_cp= cas2 || cas0 || !Qo7 ||Do8;
+    
+    Do6=ras2;
+
+
+
+    if ( (!Dtr_dir != tr_dir) && cas0!=getCas0(inp[i-1]) ){
+      bool noChange=true;
+      for (size_t k=1;k<12;k++){
+        if (
+            (getRom(inp[i+k]) != rom)||
+            (getFdc(inp[i+k]) != fdc)||
+            (getO8(inp[i+k]) != Do8))
+          noChange=false;
+      }
+      if (noChange){
+        size_t k;
+        for (k=1;k<100;k++){
+          if (getTrdir(out[i+k])==!Dtr_dir){
+            break;
+          }
+        }
+        std::cout<<"Delay "<<k<<std::endl;
+      }
+      
+    }
+
+
+
+
+
+    
+    tr_dir=!Dtr_dir;
+    tr_ce=Dtr_ce;
+    ff_cp=Dff_cp;
+    ff_oe=Dff_oe;
+    cdcas0=!cas0;
+    o6=Do6;
+    o7=!Qo7;
+    o8=Do8;
+   
+    uint8_t o=(o8<<7)|(o7<<6)|(o6<<5)|(cdcas0<<4)|(ff_oe<<3)|(ff_cp<<2)|(tr_ce<<1)|tr_dir;
+
+
+
+    /*
+    size_t same=0;
+
+    for (size_t k=1;k<7;k++){
+      if (inp[i-k]==inp[i]){
+        same++;
+      }
+    }
+
+
+    
+    if (o!=out[i] && same==6){
+      cerr<<"Mismatch @ "<<i<<" t="<<i/(200E6)<<" for "<<outDesc(o^out[i])
+          <<": prediction "<<outDesc(o)<<" actual "<<outDesc(out[i])<<endl;
+   
+      return false;
+    }
+    
+    */
+
+
+    
+
+
+    
+  }
+  cout<<"Physical verify complete"<<endl;
+  return true;
+  
+}
+
+
 
 int main(int argc,char** argv){
 
   for (int i=1;i<argc;i++){
     loadConv(argv[i],10);
     cout<<argv[i]<<" size "<<inp.size()<<endl;
-    checkDelay();
+    //checkDelay();
+    physicalVerify();
   }
   printStats();
 }
