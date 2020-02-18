@@ -13,6 +13,11 @@ static float tstep=1.0/freq;
 
 using namespace std;
 
+static inline uint8_t _BV(uint8_t v){
+  return 1<<v;
+}
+
+
 
 bool info(const char* name,size_t unstableT=0){
   ifstream file(name, ios::in|ios::binary);
@@ -449,7 +454,7 @@ public:
           }
           if (
               ((inp[i+k]^inp[i+k-1])&insense)||
-              ((out[i+k]^out[i+k-1])&outsense)
+              ((out[i+k]^out[i+k-1])&(outsense & ~_BV(outsel)))
               ){
             singleChange=false;
             break;
@@ -520,9 +525,6 @@ bool fffcp(uint8_t ins,uint8_t outs){
 }
 
 
-static inline uint8_t _BV(uint8_t v){
-  return 1<<v;
-}
 
 LogicFunction lf8(_BV(CAS2)|_BV(RAS2),
                   _BV(O6)|_BV(O8),
@@ -691,8 +693,8 @@ int main(int argc,char** argv){
     lf8.getDelay();
     lftrdir.getDelay();
     lfffoe.getDelay();
-    lftrce.getDelay();
-    lfffoe.getDelay();
+    //lftrce.getDelay();
+    lfffcp.getDelay();
   }
   //printStats();
 }
