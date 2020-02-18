@@ -4,6 +4,8 @@
 #include <set>
 #include <vector>
 #include "ios.h"
+#include <iomanip>
+
 
 static const int CHANNELS=8;
 static size_t freq=32000000;
@@ -365,11 +367,190 @@ void printStats(){
 }
 
 
+bool isSingleBit(uint8_t v){
+  for (uint8_t i=0;i<8;i++){
+    if (v==(1<<i)) return true;
+  }
+  return false;
+}
+
+
+bool getBit(uint8_t v,uint8_t sel){
+  return v&(1<<sel);
+}
+
+typedef bool (*binaryFunction)(uint8_t ins,uint8_t out);
 
 
 
 
+static const std::string  levels="01";
+void printSituation(int i){
 
+  size_t namelen=0;
+  for (size_t k=0;k<8;k++){
+    namelen=max(namelen,inpNames[k].length());
+    namelen=max(namelen,outNames[k].length());
+  }
+
+  for (size_t ink=0;ink<8;ink++){
+    cout<<std::setw(namelen)<<inpNames[ink]<<std::setw(1)<<" ";
+    for (int k=-10;k<=10;k++){
+      cout<<levels[getBit(inp[i+k],ink)];    
+    }
+    cout<<endl;        
+  }
+  cout<<endl;
+  for (size_t ink=0;ink<8;ink++){
+    cout<<std::setw(namelen)<<outNames[ink]<<std::setw(1)<<" ";
+    for (int k=-10;k<=10;k++){
+      cout<<levels[getBit(out[i+k],ink)];    
+    }
+    cout<<endl;        
+  }
+
+  
+
+  
+}
+
+
+class LogicFunction{
+
+  uint8_t insense;
+  uint8_t outsense;
+  binaryFunction f;
+  uint8_t outsel;
+  
+public:  
+  LogicFunction(uint8_t _insense,
+                uint8_t _outsense,
+                binaryFunction _f,
+                uint8_t _outsel):
+    insense(_insense),outsense(_outsense),f(_f),outsel(_outsel){
+  }
+    
+    
+    
+
+  
+  void getDelay(size_t skip=20){
+    size_t cntNorm=0;
+    for (size_t i=1+skip;i<inp.size();i++){
+
+      bool oldv=f(inp[i-1],out[i-1]);
+      bool newv=f(inp[i],out[i]);
+    
+      if (oldv!=newv){
+        bool singleChange=true;
+        for (int k=-6;k<7;k++){
+          if (k==0){
+            continue;
+          }
+          if (
+              ((inp[i+k]^inp[i+k-1])&insense)||
+              ((out[i+k]^out[i+k-1])&outsense)
+              ){
+            singleChange=false;
+            break;
+          }//if change
+        }//for k
+        if (singleChange){        
+          int k;
+          for (k=0;k<100;k++){
+            if (getBit(out[i+k],outsel)==newv){
+              break;
+            }
+          }
+          if (k>6){
+            cout<<outNames[outsel]<<" long delay"<<k<<endl;
+          }else if (k<3){
+            cout<<outNames[outsel]<<" short delay"<<k<<endl;
+            printSituation(i+k);
+          }else{
+            cntNorm++;            
+          }
+        }      
+      }   
+    }
+    cout<<outNames[outsel]<<" "<<cntNorm<<" norm delays"<<endl;
+  }
+};
+
+
+bool f8(uint8_t ins,uint8_t outs){
+  bool Do8=
+    (getCas2(ins) && getRas2(ins)) ||
+    (!getCas2(ins) && getO8(outs))  ||
+    (!getO6(outs) && getO8(outs));
+  return Do8;
+}
+
+bool fTrDir(uint8_t ins,uint8_t outs){
+  bool Dtr_dir=
+    getCas0(ins) ||
+    (getRom(ins) && getFdc(ins) && getO8(outs));
+  return !Dtr_dir;
+}
+
+
+bool fffoe(uint8_t ins,uint8_t outs){
+  bool Dff_oe=
+    getCas0(ins) ||
+    getO8(outs) ||
+    (getO6(outs) && getCas2(ins)) ||
+    (getCas2(ins) && !getO7(outs)) ||
+    (getFfoe(outs) && getRas2(ins) && getO7(outs)) ||
+    (getFfoe(outs) && !getO6(outs) && getO7(outs));
+  return Dff_oe;
+}
+
+
+bool ftrce(uint8_t ins,uint8_t outs){
+  return !getFfoe(outs);
+}
+
+bool fffcp(uint8_t ins,uint8_t outs){
+  bool Dff_cp=
+    getCas2(ins) ||
+    getCas0(ins) ||
+    getO7(outs) ||
+    getO8(outs);
+  return Dff_cp;
+}
+
+
+static inline uint8_t _BV(uint8_t v){
+  return 1<<v;
+}
+
+LogicFunction lf8(_BV(CAS2)|_BV(RAS2),
+                  _BV(O6)|_BV(O8),
+                  f8,O8
+                  );
+
+
+LogicFunction lftrdir(_BV(CAS0)|_BV(ROM)|_BV(FDC),
+                      _BV(O8),
+                      fTrDir,TR_DIR
+                      );
+
+LogicFunction lfffoe(_BV(CAS0)|_BV(CAS2)|_BV(RAS2),
+                     _BV(O6)|_BV(O7)|_BV(O8),
+                     fffoe,FF_OE
+                     );
+
+
+LogicFunction lftrce(0,
+                     _BV(TR_CE),
+                     ftrce,TR_CE
+                     );
+
+
+LogicFunction lfffcp(_BV(CAS2)|_BV(CAS0),
+                     _BV(O7)|_BV(O8),
+                     fffcp,FF_CP
+                     );
 
 
 bool physicalVerify(int skip=20){
@@ -438,12 +619,15 @@ bool physicalVerify(int skip=20){
 
     if ( (!Dtr_dir != tr_dir) && cas0!=getCas0(inp[i-1]) ){
       bool noChange=true;
-      for (size_t k=1;k<12;k++){
+      for (size_t k=-6;k<12;k++){
         if (
             (getRom(inp[i+k]) != rom)||
             (getFdc(inp[i+k]) != fdc)||
-            (getO8(inp[i+k]) != Do8))
+            (getO8(inp[i+k]) != Do8)
+            ){
           noChange=false;
+          break;
+        }        
       }
       if (noChange){
         size_t k;
@@ -472,10 +656,7 @@ bool physicalVerify(int skip=20){
     o8=Do8;
    
     uint8_t o=(o8<<7)|(o7<<6)|(o6<<5)|(cdcas0<<4)|(ff_oe<<3)|(ff_cp<<2)|(tr_ce<<1)|tr_dir;
-
-
-
-    /*
+    
     size_t same=0;
 
     for (size_t k=1;k<7;k++){
@@ -483,21 +664,13 @@ bool physicalVerify(int skip=20){
         same++;
       }
     }
-
-
     
     if (o!=out[i] && same==6){
       cerr<<"Mismatch @ "<<i<<" t="<<i/(200E6)<<" for "<<outDesc(o^out[i])
           <<": prediction "<<outDesc(o)<<" actual "<<outDesc(out[i])<<endl;
    
       return false;
-    }
-    
-    */
-
-
-    
-
+    }       
 
     
   }
@@ -514,7 +687,12 @@ int main(int argc,char** argv){
     loadConv(argv[i],10);
     cout<<argv[i]<<" size "<<inp.size()<<endl;
     //checkDelay();
-    physicalVerify();
+    //physicalVerify();
+    lf8.getDelay();
+    lftrdir.getDelay();
+    lfffoe.getDelay();
+    lftrce.getDelay();
+    lfffoe.getDelay();
   }
-  printStats();
+  //printStats();
 }
