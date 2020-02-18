@@ -86,6 +86,7 @@ bool info(const char* name,size_t unstableT=0){
 
 std::vector<uint8_t> inp;
 std::vector<uint8_t> out;
+std::vector<uint8_t> simout;
 
 bool loadConv(const char* name,size_t unstableT=0){
   ifstream file(name, ios::in|ios::binary|ios::ate);
@@ -389,8 +390,28 @@ typedef bool (*binaryFunction)(uint8_t ins,uint8_t out);
 
 
 
+
 static const std::string  levels="01";
-void printSituation(int i){
+
+void graph(size_t namelen,const std::vector<std::string>& names,const std::vector<uint8_t>& val,size_t i){
+  for (size_t b=0;b<8;b++){
+    cout<<std::setw(namelen)<<names[b]<<std::setw(1)<<" ";
+    for (int k=-10;k<=20;k++){
+      cout<<levels[getBit(val[i+k],b)];    
+    }
+    cout<<endl;        
+  }
+
+}
+
+
+
+
+
+
+
+
+void printSituation(int i,bool withSim=false){
 
   size_t namelen=0;
   for (size_t k=0;k<8;k++){
@@ -398,25 +419,13 @@ void printSituation(int i){
     namelen=max(namelen,outNames[k].length());
   }
 
-  for (size_t ink=0;ink<8;ink++){
-    cout<<std::setw(namelen)<<inpNames[ink]<<std::setw(1)<<" ";
-    for (int k=-10;k<=10;k++){
-      cout<<levels[getBit(inp[i+k],ink)];    
-    }
-    cout<<endl;        
-  }
+  graph(namelen,inpNames,inp,i);
   cout<<endl;
-  for (size_t ink=0;ink<8;ink++){
-    cout<<std::setw(namelen)<<outNames[ink]<<std::setw(1)<<" ";
-    for (int k=-10;k<=10;k++){
-      cout<<levels[getBit(out[i+k],ink)];    
-    }
-    cout<<endl;        
+  graph(namelen,outNames,out,i);
+  if (withSim){
+    cout<<endl;
+    graph(namelen,outNames,simout,i);
   }
-
-  
-
-  
 }
 
 
@@ -555,34 +564,36 @@ LogicFunction lfffcp(_BV(CAS2)|_BV(CAS0),
                      );
 
 
-bool physicalVerify(int skip=20){
+uint8_t predict(uint8_t inp,uint8_t pinp,uint8_t out,bool& Qo7){
 
-
-  bool o6=getO6(out[skip]);
-  bool Qo7=!getO7(out[skip]);
-  bool o8=getO8(out[skip]);
-  bool tr_ce=getTrce(out[skip]);
-  bool ff_oe=getFfoe(out[skip]);
-
-  
-  for (size_t i=1+skip;i<inp.size();i++){
-    bool fdc=getFdc(inp[i]);
-    bool cas2=getCas2(inp[i]);
-    bool ras2=getRas2(inp[i]);
-    bool cas0=getCas0(inp[i]);
-    bool rom=getRom(inp[i]);
-    bool wr=getWr(inp[i]);
-
-    bool Dtr_ce,Dtr_dir,Dff_oe,Do6,Do8,Dff_cp;
-    bool ff_cp,tr_dir,cdcas0,o7;
+  bool fdc=getFdc(inp);
+    bool cas2=getCas2(inp);
+    bool ras2=getRas2(inp);
+    bool cas0=getCas0(inp);
+    bool rom=getRom(inp);
+    bool wr=getWr(inp);
 
     
-    if (getAsel(inp[i])&&!getAsel(inp[i-1])){
+    bool o6=getO6(out);
+
+    bool o8=getO8(out);
+    bool tr_ce=getTrce(out);
+    bool ff_oe=getFfoe(out);
+
+    bool tr_dir=getTrdir(out);
+
+
+    
+    bool Dtr_ce,Dtr_dir,Dff_oe,Do6,Do8,Dff_cp,Dcdcas0;
+    bool ff_cp,cdcas0,o7;
+
+    
+    if (getAsel(inp)&&!getAsel(pinp)){
       Qo7=
         (Qo7 && fdc && rom && ras2) ||
         (Qo7 && fdc && rom && cas2 && cas0) ||
         (!ras2 && cas0 && cas2);
-    }
+    }    
     if (wr){
       Qo7=false;
     }
@@ -604,14 +615,16 @@ bool physicalVerify(int skip=20){
       (ff_oe && ras2 && !Qo7) ||
       (ff_oe && !o6 && !Qo7);
 
-    //Dtr_ce=!Dff_oe;
-    Dtr_ce=
+    Dtr_ce=!ff_oe;
+    /*Dtr_ce=
       (!Do8 && !cas0 && tr_ce &&  !o6 && !Qo7) ||
       (!Do8 && !cas0 && tr_ce && !cas2) ||
       (!Do8 && !cas0 && !ras2 && o6 && !cas2) ||
-      (!Do8 && !cas0 && !cas2 && Qo7);
+      (!Do8 && !cas0 && !cas2 && Qo7);*/
     
 
+    Dcdcas0= cas0 && !tr_dir;
+    
     
     Dff_cp= cas2 || cas0 || !Qo7 ||Do8;
     
@@ -619,82 +632,334 @@ bool physicalVerify(int skip=20){
 
 
 
-    if ( (!Dtr_dir != tr_dir) && cas0!=getCas0(inp[i-1]) ){
-      bool noChange=true;
-      for (size_t k=-6;k<12;k++){
-        if (
-            (getRom(inp[i+k]) != rom)||
-            (getFdc(inp[i+k]) != fdc)||
-            (getO8(inp[i+k]) != Do8)
-            ){
-          noChange=false;
-          break;
-        }        
-      }
-      if (noChange){
-        size_t k;
-        for (k=1;k<100;k++){
-          if (getTrdir(out[i+k])==!Dtr_dir){
-            break;
-          }
-        }
-        std::cout<<"Delay "<<k<<std::endl;
-      }
-      
-    }
-
-
-
-
-
-    
     tr_dir=!Dtr_dir;
     tr_ce=Dtr_ce;
     ff_cp=Dff_cp;
     ff_oe=Dff_oe;
-    cdcas0=!cas0;
+    cdcas0=!Dcdcas0;
     o6=Do6;
     o7=!Qo7;
-    o8=Do8;
-   
+    o8=Do8;   
     uint8_t o=(o8<<7)|(o7<<6)|(o6<<5)|(cdcas0<<4)|(ff_oe<<3)|(ff_cp<<2)|(tr_ce<<1)|tr_dir;
-    
-    size_t same=0;
+    return o;
+}
 
-    for (size_t k=1;k<7;k++){
-      if (inp[i-k]==inp[i]){
-        same++;
-      }
-    }
-    
-    if (o!=out[i] && same==6){
-      cerr<<"Mismatch @ "<<i<<" t="<<i/(200E6)<<" for "<<outDesc(o^out[i])
-          <<": prediction "<<outDesc(o)<<" actual "<<outDesc(out[i])<<endl;
-   
-      return false;
-    }       
+
+
+
+static const size_t DELAY=3;
+void physicalSim(int skip=20){
+  simout.resize(out.size()+DELAY);
+
+  for (size_t i=0;i<=skip+DELAY;i++){
+    simout[i]=out[i];
+  }
+
+  bool Qo7=!getO7(simout[skip]);  
+  for (size_t i=1+skip;i<inp.size();i++){
+    uint8_t o=predict(inp[i],inp[i-1],simout[i],Qo7);
+    simout[i+DELAY]=o;
 
     
   }
-  cout<<"Physical verify complete"<<endl;
-  return true;
+  cout<<"Physical sim complete"<<endl;  
+}
+
+
+
+class Propagation{
+  uint8_t time[8][2][8][2];
+  uint8_t cnt[8][2][8][2];
+
+
+public:
+  Propagation(){
+    for (int it=0;it<8;it++){
+      for (int id=0;id<2;id++){
+        for (int ot=0;ot<8;ot++){
+          for (int od=0;od<2;od++){
+            time[it][id][ot][od]=0;
+            cnt[it][id][ot][od]=0;
+          }
+        }
+      }
+    }
+  }
+  
+void compute(int skip=20){  
+  bool Qo7=!getO7(simout[skip]);  
+  for (size_t i=1+skip;i<inp.size();i++){
+    uint8_t inptr=inp[i]^inp[i-1];
+    uint8_t prevo=predict(inp[i-1],inp[i-2],out[i-1],Qo7);
+    uint8_t nexto=predict(inp[i],inp[i-1],out[i],Qo7);
+
+    uint8_t outtr=prevo^nexto;
+
+    if (!isSingleBit(inptr)){
+      continue;
+    }
+    
+    
+    for (int ib=0;ib<8;ib++){      
+      if (getBit(inptr,ib)){
+        for (int ob=0;ob<8;ob++){
+          if (getBit(outtr,ob)){
+            size_t k;
+            bool targeto=getBit(nexto,ob);
+            for (k=0;(k<inp.size()-i) && (getBit(out[i+k],ob)==targeto);k++);              
+            time[ib][getBit(inp[i],ib)][ob][targeto]=k-1;
+            cnt[ib][getBit(inp[i],ib)][ob][targeto]++;
+          }//if getBit out          
+        }
+      }//if getbit in
+    }//for ib
+  }//for i
+  
+}//measure delays
+
+
+  void stats(){
+
+    for (int ib=0;ib<8;ib++){
+      for (int ob=0;ob<8;ob++){
+
+        int cntsum=0;
+        for (int id=0;id<2;id++){
+          for (int od=0;od<2;od++){
+            cntsum+=cnt[ib][id][ob][od];
+          }
+        }
+        if (cntsum){
+          cout<<inpNames[ib]<<"->"<<outNames[ob]<<" ";
+          for (int id=0;id<2;id++){
+            for (int od=0;od<2;od++){
+              int tcnt=cnt[ib][id][ob][od];
+              if (tcnt){
+                cout<<id<<"->"<<od<<"="<<time[ib][id][ob][od]/(float(tcnt))<<" ";
+              }//if cnt
+              }//for od
+          }//for id
+          cout<<endl;
+        }//if cntsum
+        
+      }//for ob
+    }//for ib
+    
+  }//stats
+ 
+  
+};//Propagation
+
+
+void compSim(size_t skip=20){
+
+  for (size_t i=skip;i<inp.size();i++){
+    if (out[i]!=simout[i]){
+      bool stabilized=false;
+      for (uint8_t k=1;k<6;k++){
+        if (out[i+k]==simout[i+k]){
+          stabilized=true;
+          break;
+        }
+      }
+      if (!stabilized){
+        uint8_t diff=simout[i]^out[i];
+        cout<<"i="<<i<<" t="<<i/200E6;
+        for (int b=0;b<8;b++){
+          if (diff&(1<<b)){
+            cout<<" "<<outNames[b];
+          }
+        }
+        cout<<endl;
+        graph(6,inpNames,inp,i);
+        cout<<endl;
+        graph(6,outNames,out,i);
+        cout<<endl;
+        graph(6,outNames,simout,i);
+        return;
+      }
+         
+    }
+
+
+  }
+  cout<<"Comp sim complete"<<endl;
+}
+
+
+
+float safeDiv(int a,int b){
+  if (!b) return 0;
+  return ((float)a)/b;
+}
+
+void checkDt(){
+  int edge[2];
+  int edgecnt[2];
+
+  
+  for (size_t o=0;o<8;o++){
+    for (size_t i=0;i<2;i++){
+      edge[i]=edgecnt[i]=0;
+    }   
+    for (size_t i=10;i<inp.size()-10;++i){
+      bool newv=getBit(out[i],o);
+      bool isGlitch=(o==7) && !getBit(out[i-1],o) && newv;
+      if (newv!=getBit(out[i-1],o) && !isGlitch){
+          edgecnt[newv]++;
+          if (getBit(simout[i],o)==newv){
+            size_t k;
+            for (k=1;k<100;k++){
+              if (getBit(simout[i-k],o)!=newv){
+                break;
+              }              
+            }
+            if (k==100){
+              cout<<"NEG BAD!"<<newv<<endl;
+              printSituation(i,true);
+              return;
+            }
+            edge[newv]+=-(k-1);
+          }else{
+            size_t k;
+            for (k=1;k<100;k++){
+              if (getBit(simout[i+k],o)==getBit(out[i+k],o)){
+                break;
+              }              
+            }
+            if (k==100){
+              cout<<"POS BAD!"<<endl;
+              return;
+            }
+            edge[newv]+=k-1;
+          }          
+        }
+      }
+    cout<<outNames[o]<<" "<<safeDiv(edge[0],edgecnt[0])<<"(of "<<edgecnt[0]<<")"<<
+                       " "<<safeDiv(edge[1],edgecnt[1])<<"(of "<<edgecnt[1]<<")"<<endl;
+  }//for o
+
+}//checkdt
+
+
+std::pair<float,float> getDelay(const std::vector<uint8_t>& src, uint8_t srcbit,
+                                const std::vector<uint8_t>& dst, uint8_t dstbit,bool inv=true
+                          ){
+
+  int edge[2];
+  int edgecnt[2];
+
+  for (size_t i=0;i<2;i++){
+    edge[i]=edgecnt[i]=0;
+  }
+  
+  for (size_t i=0;i<inp.size();i++){
+    bool newv=getBit(src[i],srcbit);    
+    if (newv!=getBit(src[i-1],srcbit)){
+      edgecnt[newv]++;
+      size_t k;
+      for (k=0;getBit(dst[i+k],dstbit) !=(inv^newv);k++);
+      edge[newv]+=k-1;
+    }    
+  }
+  if (edgecnt[0]<2) cout<<"unreliable 0 mean"<<endl;
+  if (edgecnt[1]<2) cout<<"unreliable 1 mean"<<endl;
+  return make_pair(safeDiv(edge[0],edgecnt[0]),safeDiv(edge[1],edgecnt[1]));                           
+
   
 }
 
 
 
-int main(int argc,char** argv){
+void compareDelays(){
 
+  cout<<"cas0 -> cdcas0 ";
+  std::pair<float,float> r=getDelay(inp,CAS0,out,CDCAS0);
+  cout<<r.first<<" "<<r.second<<endl;
+
+  cout<<"ras2 -> o6 ";
+  r=getDelay(inp,RAS2,out,O6,false);
+  cout<<r.first<<" "<<r.second<<endl;
+  
+  cout<<"ff_oe-> tr_ce ";
+  r=getDelay(out,FF_OE,out,TR_CE);
+  cout<<r.first<<" "<<r.second<<endl;
+}
+
+
+
+void getDelays(){
+  lf8.getDelay();
+  lftrdir.getDelay();
+  lfffoe.getDelay();
+  //lftrce.getDelay();
+  lfffcp.getDelay();
+}
+
+
+
+
+void printContent(ofstream& f,const std::vector<uint8_t> out){
+  uint8_t mask=0x1F;
+
+
+  for (size_t i=0;i<inp.size();){
+    for (int o=0;o<5;o++){
+      f<<outNames[o]<<getBit(out[i],o);
+      if (getBit(out[i],o)!=getBit(out[i-1],o)){
+        f<<"*";
+      }else{
+        f<<" ";
+      }
+      f<<" ";
+    }
+    size_t k;
+    for (k=1;(k<inp.size()-i)&&
+           (
+            (out[i+k]&mask)==(out[i]&mask)
+
+            );k++);
+
+
+    f<<hex<<(int)(out[i]&mask)<<dec<<" ";
+    if (k<10){
+      f<<"9-";
+    }else{
+      f<<"10+";
+    }    
+    f<<endl;
+    i+=k;         
+  }
+}
+
+void printComparison(const std::string& rootname){
+  std::string rname=rootname+".real";
+  std::string simname=rootname+".sim";
+  ofstream re(rname.c_str());  
+  ofstream sim(simname.c_str());
+  printContent(re,out);
+  printContent(sim,simout);
+}
+
+
+
+
+
+int main(int argc,char** argv){
+  Propagation propagation;
+  
   for (int i=1;i<argc;i++){
     loadConv(argv[i],10);
     cout<<argv[i]<<" size "<<inp.size()<<endl;
     //checkDelay();
     //physicalVerify();
-    lf8.getDelay();
-    lftrdir.getDelay();
-    lfffoe.getDelay();
-    //lftrce.getDelay();
-    lfffcp.getDelay();
+    physicalSim();
+    compSim();
+    //checkDt();
+    //compareDelays();
+    //printComparison(argv[i]);
+    propagation.compute();
   }
+  propagation.stats();
   //printStats();
 }
