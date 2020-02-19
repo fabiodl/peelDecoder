@@ -397,6 +397,9 @@ void graph(size_t namelen,const std::vector<std::string>& names,const std::vecto
   for (size_t b=0;b<8;b++){
     cout<<std::setw(namelen)<<names[b]<<std::setw(1)<<" ";
     for (int k=-10;k<=20;k++){
+      if (k==0){
+        cout<<"|";
+      }
       cout<<levels[getBit(val[i+k],b)];    
     }
     cout<<endl;        
@@ -411,8 +414,9 @@ void graph(size_t namelen,const std::vector<std::string>& names,const std::vecto
 
 
 
-void printSituation(int i,bool withSim=false){
+void printSituation(int i,bool withSim=false,bool skipReal=false){
 
+  cout<<"i="<<i<<endl;
   size_t namelen=0;
   for (size_t k=0;k<8;k++){
     namelen=max(namelen,inpNames[k].length());
@@ -420,8 +424,10 @@ void printSituation(int i,bool withSim=false){
   }
 
   graph(namelen,inpNames,inp,i);
-  cout<<endl;
-  graph(namelen,outNames,out,i);
+  if (!skipReal){
+    cout<<endl;
+    graph(namelen,outNames,out,i);
+  }
   if (withSim){
     cout<<endl;
     graph(namelen,outNames,simout,i);
@@ -623,7 +629,7 @@ uint8_t predict(uint8_t inp,uint8_t pinp,uint8_t out,bool& Qo7){
       (!Do8 && !cas0 && !cas2 && Qo7);*/
     
 
-    Dcdcas0= cas0 && !tr_dir;
+    Dcdcas0= cas0 ;//&& !tr_dir;
     
     
     Dff_cp= cas2 || cas0 || !Qo7 ||Do8;
@@ -647,20 +653,17 @@ uint8_t predict(uint8_t inp,uint8_t pinp,uint8_t out,bool& Qo7){
 
 
 
-static const size_t DELAY=3;
-void physicalSim(int skip=20){
-  simout.resize(out.size()+DELAY);
+void physicalSim(size_t delay=3,size_t skip=20){
+  simout.resize(out.size()+delay);
 
-  for (size_t i=0;i<=skip+DELAY;i++){
+  for (size_t i=0;i<=skip+delay;i++){
     simout[i]=out[i];
   }
 
   bool Qo7=!getO7(simout[skip]);  
   for (size_t i=1+skip;i<inp.size();i++){
-    uint8_t o=predict(inp[i],inp[i-1],simout[i],Qo7);
-    simout[i+DELAY]=o;
-
-    
+    uint8_t o=predict(inp[i],inp[i-1],simout[i-1],Qo7);
+    simout[i+delay]=o;    
   }
   cout<<"Physical sim complete"<<endl;  
 }
@@ -668,10 +671,10 @@ void physicalSim(int skip=20){
 
 
 class Propagation{
-  uint8_t time[8][2][8][2];
-  uint8_t cnt[8][2][8][2];
-
-
+  size_t time[8][2][8][2];
+  size_t cnt[8][2][8][2];
+  
+  
 public:
   Propagation(){
     for (int it=0;it<8;it++){
@@ -685,44 +688,66 @@ public:
       }
     }
   }
-  
-void compute(int skip=20){  
-  bool Qo7=!getO7(simout[skip]);  
-  for (size_t i=1+skip;i<inp.size();i++){
-    uint8_t inptr=inp[i]^inp[i-1];
-    uint8_t prevo=predict(inp[i-1],inp[i-2],out[i-1],Qo7);
-    uint8_t nexto=predict(inp[i],inp[i-1],out[i],Qo7);
 
-    uint8_t outtr=prevo^nexto;
 
-    if (!isSingleBit(inptr)){
-      continue;
-    }
-    
-    
-    for (int ib=0;ib<8;ib++){      
-      if (getBit(inptr,ib)){
-        for (int ob=0;ob<8;ob++){
-          if (getBit(outtr,ob)){
-            size_t k;
-            bool targeto=getBit(nexto,ob);
-            for (k=0;(k<inp.size()-i) && (getBit(out[i+k],ob)==targeto);k++);              
-            time[ib][getBit(inp[i],ib)][ob][targeto]=k-1;
-            cnt[ib][getBit(inp[i],ib)][ob][targeto]++;
-          }//if getBit out          
+  bool checkTable(){
+    for (int it=0;it<8;it++){
+      for (int id=0;id<2;id++){
+        for (int ot=0;ot<8;ot++){
+          for (int od=0;od<2;od++){
+            if (cnt[it][id][ot][od] && 
+                time[it][id][ot][od]/(float(cnt[it][id][ot][od]))>10){
+              cout<<"suspicious "<<inpNames[it]<<"->"<<outNames[ot]<<" time "<<
+                time[it][id][ot][od]<<endl;
+              return false;
+            }
+            
+          }
         }
-      }//if getbit in
-    }//for ib
-  }//for i
+      }
+    }
+    return true;
+  }
   
-}//measure delays
+  void compute(int skip=20){  
+    physicalSim(0,skip);
+
+    for (size_t i=2+skip;i<inp.size();i++){
+      uint8_t inptr=inp[i]^inp[i-1];      
+      uint8_t outtr=simout[i]^simout[i-1];
+      
+      if (!inptr || ! outtr || !isSingleBit(inptr)){
+        continue;
+      }
+
+      
+      for (int ib=0;ib<8;ib++){      
+        if (getBit(inptr,ib)){
+          //cout<<inpNames[ib]<<" changes "<<outDesc(simout[i-1]^simout[i] )<<" to "<<outDesc(simout[i])<<endl;
+          for (int ob=0;ob<8;ob++){
+            if (getBit(outtr,ob)){
+              size_t k;
+              bool targeto=getBit(simout[i],ob);
+              for (k=0;(k<inp.size()-i) && (getBit(out[i+k],ob)!=targeto);k++);              
+
+              time[ib][getBit(inp[i],ib)][ob][targeto]+=k-1;
+              cnt[ib][getBit(inp[i],ib)][ob][targeto]++;
 
 
+            }//if getBit out          
+          }
+        }//if getbit in
+      }//for ib
+    }//for i
+    
+  }//measure delays
+  
+  
   void stats(){
-
+    
     for (int ib=0;ib<8;ib++){
       for (int ob=0;ob<8;ob++){
-
+        
         int cntsum=0;
         for (int id=0;id<2;id++){
           for (int od=0;od<2;od++){
@@ -735,7 +760,7 @@ void compute(int skip=20){
             for (int od=0;od<2;od++){
               int tcnt=cnt[ib][id][ob][od];
               if (tcnt){
-                cout<<id<<"->"<<od<<"="<<time[ib][id][ob][od]/(float(tcnt))<<" ";
+                cout<<id<<"->"<<od<<"="<<time[ib][id][ob][od]/(float(tcnt))<<" ("<<tcnt<<")" ;
               }//if cnt
               }//for od
           }//for id
