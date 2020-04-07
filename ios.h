@@ -5,8 +5,8 @@ static std::vector<std::string> inpNames={"asel","fdc","rom","ras2","cas2","cas0
 static std::vector<std::string> outNames={"tr_dir","tr_ce","ff_cp","ff_oe","cdcas0","o6","o7","o8"};
 
 
-enum {ASEL,FDC,ROM,RAS2,CAS2,CAS0,WR,FRES};
-enum {TR_DIR,TR_CE,FF_CP,FF_OE,CDCAS0,O6,O7,O8};
+/*enum {ASEL,FDC,ROM,RAS2,CAS2,CAS0,WR,FRES};
+  enum {TR_DIR,TR_CE,FF_CP,FF_OE,CDCAS0,O6,O7,O8};*/
 
   
 static inline bool getAsel(uint8_t v){

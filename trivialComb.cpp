@@ -1,11 +1,10 @@
-#include <algorithm>
-#include <sstream>
-#include <map>
-#include <set>
-#include <cstring>
 #include "dataLoad.h"
 #include <qm.h>
+#include <map>
+#include <set>
+#include <algorithm>
 #include "ios.h"
+#include <sstream>
 
 
 std::vector<std::string> enames;
@@ -2039,7 +2038,7 @@ std::string descrSpaced(std::vector<string>& names,uint8_t v){
         ss<<" ";
       }
     }
-     
+
   }
   return ss.str();
 }
@@ -2053,10 +2052,10 @@ enum Sig{ASEL=0x01,
          CAS0=0x20,
          WR=0x40,
          FRES=0x80};
-void genTest(const std::vector<int>& changes){
+void genTest(const std::vector<int>& changes,size_t loops=1){
+
   uint8_t out=0;
   uint8_t inp=0;
-
   cout<<"(";
   for (auto i:inpNames){
     cout<<i<<" ";
@@ -2066,25 +2065,26 @@ void genTest(const std::vector<int>& changes){
     cout<<o<<" ";
   }
   cout<<")"<<endl;
-  
-  for (auto chg:changes){  
-    bool edge=(chg&1) && (~inp&1);
-    inp=inp^chg;
-    out=step(inp,out,edge);
-    for (auto i=0;i<8;i++){
-      cout<<(inp&(1<<i)?'1':'0')<<" ";
-    }
-    cout<<"-> ";
-    for (auto i=0;i<8;i++){
-      cout<<(out&(1<<i)?'H':'L')<<" ";
-    }
 
-    cout<<"\""<<descrSpaced(inpNames,inp)<<"->"<<descrSpaced(outNames,out);
-        
-    cout<<endl;
+  for (size_t ite=0;ite<loops;ite++){  
+    cout<<"\" loop"<<ite<<endl;
+    for (auto chg:changes){  
+      bool edge=(chg&1) && (~inp&1);
+      inp=inp^chg;
+      out=step(inp,out,edge);
+      for (auto i=0;i<8;i++){
+        cout<<(inp&(1<<i)?'1':'0')<<" ";
+      }
+      cout<<"-> ";
+      for (auto i=0;i<8;i++){
+        cout<<(out&(1<<i)?'H':'L')<<" ";
+      }
+      cout<<"\""<<descrSpaced(inpNames,inp)<<"->"<<descrSpaced(outNames,out);
+
+      cout<<endl;
+    }
   }
 }
-
 
 
 void genTestFlipOuts(){
@@ -2108,12 +2108,11 @@ void genTestFlipOuts(){
                             ASEL,
                             CAS0,
                             ASEL
-                                                                                                              
+
   };
   genTest(changes);
-  
-}
 
+}
 
 void genTestTrDir(){
   std::vector<int> changes={CAS0|CAS2,
@@ -2132,6 +2131,27 @@ void genTestTrDir(){
   genTest(changes);                            
 }
 
+
+
+void genTestFFoe(){
+  std::vector<int> changes={CAS0|CAS2,
+                            ASEL,     //reset o7
+                            ASEL,
+                            CAS0,
+                            RAS2,
+                            RAS2,     //ras 2 f with cas2 h resets o8
+                            
+                            CAS2,                           
+                            WR, //set o7
+                            CAS2,
+                            RAS2,
+                            RAS2,
+                            CAS2,
+                            WR
+  };
+  genTest(changes,2);                          
+  
+}
 
 
 int main(int argc,char** argv){
@@ -2162,8 +2182,9 @@ int main(int argc,char** argv){
   //findMask(7);
   //findCombinatorial(3);
   //verify();
-  //physicalVerify();
-  genTestTrDir();
+  ///physicalVerify();
+  //genTestTrDir();
+  genTestFFoe();
   //checkStay();
 
   //findOutForcers();
