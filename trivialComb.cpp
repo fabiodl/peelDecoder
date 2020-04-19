@@ -2042,7 +2042,10 @@ std::string descrSpaced(std::vector<string>& names,uint8_t v){
   }
   return ss.str();
 }
-
+struct Change{
+  int val;
+  const char* desc;
+};
 
 enum Sig{ASEL=0x01,
          FDC=0x02,
@@ -2052,7 +2055,7 @@ enum Sig{ASEL=0x01,
          CAS0=0x20,
          WR=0x40,
          FRES=0x80};
-void genTest(const std::vector<int>& changes,size_t loops=1){
+void genTest(const std::vector<Change>& changes,size_t loops=1){
 
   uint8_t out=0;
   uint8_t inp=0;
@@ -2068,7 +2071,8 @@ void genTest(const std::vector<int>& changes,size_t loops=1){
 
   for (size_t ite=0;ite<loops;ite++){  
     cout<<"\" loop"<<ite<<endl;
-    for (auto chg:changes){  
+    for (auto chp:changes){  
+      int chg=chp.val;
       bool edge=(chg&1) && (~inp&1);
       inp=inp^chg;
       out=step(inp,out,edge);
@@ -2081,12 +2085,12 @@ void genTest(const std::vector<int>& changes,size_t loops=1){
       }
       cout<<"\""<<descrSpaced(inpNames,inp)<<"->"<<descrSpaced(outNames,out);
 
-      cout<<endl;
+      cout<<chp.desc<<" "<<endl;
     }
   }
 }
 
-
+/*
 void genTestFlipOuts(){
   std::vector<int> changes={WR|CAS2|RAS2|CAS0,
                             WR,
@@ -2152,6 +2156,107 @@ void genTestFFoe(){
   genTest(changes,2);                          
   
 }
+*/
+
+void genTestFFcp(){
+  std::vector<Change> changes={{CAS0|CAS2,""},
+                               {ASEL,"reset o7"},
+                               {ASEL,""},
+                               {CAS0,""},
+                               {RAS2,""},
+                               {RAS2,"resets o8"},
+                               {CAS2,""},
+                               {RAS2,"pulse 0000"},
+                               {RAS2,""},
+                               {CAS0,""},
+                               {RAS2,"pulse 0100"}, 
+                               {RAS2,""},
+                               {CAS0,""},
+                               {CAS2,""},
+                               {RAS2,"pulse 1000"},
+                               {RAS2, ""},
+                               {CAS0,""},
+                               {RAS2,"pulse 1100"},
+                               {RAS2, ""},
+                               {CAS0,""},
+                               
+                               {RAS2, "set o8"},
+                               {CAS2,""},
+                               {RAS2,""},
+                               {RAS2,"pulse 0001"},
+                               {RAS2,""},
+                               {CAS0,""},
+                               {RAS2,"pulse 0101"},
+                               {RAS2, ""},
+                               {CAS0,""},
+                               
+                               {CAS2,""},
+                               {RAS2,"pulse 1001"},
+                               {RAS2,""},
+                               {CAS2,""},
+
+                               {CAS0,""},
+                               {CAS2,""},
+                               {RAS2,""},
+                               {CAS2,""},
+                               {RAS2,""},
+                               
+                               {CAS2,""},
+                               {RAS2,"pulse 1101"},
+                               {RAS2,""},
+                               {CAS2,""},
+                               {CAS0,""},
+                               {WR,"set o7"},
+                               {WR,""},
+
+                               {RAS2,"pulse 0010"},
+                               {RAS2,""},
+                               {CAS0,""},
+                               {RAS2,"pulse 0110"}, 
+                               {RAS2,""},
+                               {CAS0,""},
+                               {CAS2,""},
+                               {RAS2,"pulse 1010"},
+                               {RAS2, ""},
+                               {CAS0,""},
+                               {RAS2,"pulse 1110"},
+                               {RAS2, ""},
+                               {CAS0,""},
+                               
+                               {RAS2, "set o8"},
+                               {CAS2,""},
+                               {RAS2,""},
+                               {RAS2,"pulse 0011"},
+                               {RAS2,""},
+                               {CAS0,""},
+                               {RAS2,"pulse 0111"},
+                               {RAS2, ""},
+                               {CAS0,""},
+                               
+                               {CAS2,""},
+                               {RAS2,"pulse 1011"},
+                               {RAS2,""},
+                               {CAS2,""},
+
+                               {CAS0,""},
+                               {CAS2,""},
+                               {RAS2,""},
+                               {CAS2,""},
+                               {RAS2,""},
+                               
+                               {CAS2,""},
+                               {RAS2,"pulse 1111"},
+                               {RAS2,""},
+                               {CAS2,""},
+                               {CAS0,""},
+
+                               
+  };
+  genTest(changes,2);                          
+  
+}
+
+
 
 
 int main(int argc,char** argv){
@@ -2184,7 +2289,8 @@ int main(int argc,char** argv){
   //verify();
   ///physicalVerify();
   //genTestTrDir();
-  genTestFFoe();
+  //genTestFFoe();
+  genTestFFcp();
   //checkStay();
 
   //findOutForcers();
